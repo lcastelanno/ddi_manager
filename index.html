@@ -7,7 +7,7 @@
     <style>
         /* =========================================
            PURE EMBEDDED CSS (100% OFFLINE)
-           GRAPHITE & PURPLE THEME
+           GRAPHITE & PURPLE THEME (WITH BLUE ACCENTS)
            ========================================= */
         :root {
             --primary: #f8fafc; /* Light text */
@@ -20,8 +20,11 @@
             --text-main: #f4f4f5;
             --text-muted: #a1a1aa;
             --border-color: #52525b; /* Zinc 600 */
-            --success-bg: rgba(22, 163, 74, 0.2);
-            --success-text: #4ade80;
+            
+            /* Success/Highlight is now Blue */
+            --success-bg: rgba(59, 130, 246, 0.15); /* Blue background */
+            --success-text: #60a5fa; /* Light Blue text */
+            
             --warning-bg: rgba(217, 119, 6, 0.2);
             --warning-text: #fbbf24;
         }
@@ -30,26 +33,46 @@
         
         body { background-color: var(--bg-body); color: var(--text-main); line-height: 1.5; padding-bottom: 40px; }
         
-        /* Layout */
-        .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+        /* Layout - Expanded to fit 3 columns */
+        .container { max-width: 1400px; margin: 0 auto; padding: 0 24px; }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            align-items: start;
+        }
+
+        /* Responsive grid: stacks on smaller screens */
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
         
         /* Header */
         header { background: var(--bg-card); border-bottom: 4px solid var(--accent); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); padding: 20px 0; margin-bottom: 32px; }
-        .header-content { display: flex; align-items: center; gap: 16px; }
-        .logo-container { background: #ffffff; padding: 4px 12px; border-radius: 8px; display: flex; align-items: center; justify-content: center; height: 48px; }
-        .logo-img { max-height: 100%; max-width: 160px; object-fit: contain; }
+        .header-content { display: flex; align-items: center; gap: 24px; }
+        
+        /* Logo Container */
+        .logo-container { background: #ffffff; padding: 8px 24px; border-radius: 8px; display: flex; align-items: center; justify-content: center; height: 80px; }
+        .logo-img { max-height: 100%; max-width: 280px; object-fit: contain; }
+        
         .header-icon { background: var(--accent); color: white; padding: 10px; border-radius: 8px; display: flex; }
-        .header-title h1 { font-size: 22px; color: var(--primary); letter-spacing: -0.5px; }
-        .header-title p { font-size: 14px; color: var(--text-muted); }
+        .header-title h1 { font-size: 26px; color: var(--primary); letter-spacing: -0.5px; margin-bottom: 4px; }
+        .header-title p { font-size: 15px; color: var(--text-muted); }
 
         /* Cards */
         .card { background: var(--bg-card); border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid var(--border-color); margin-bottom: 24px; overflow: hidden; }
         .card-header { background: rgba(0,0,0,0.15); padding: 16px 24px; border-bottom: 1px solid var(--border-color); font-weight: 700; color: var(--primary); display: flex; justify-content: space-between; align-items: center; }
-        .card-body { padding: 24px; }
+        .card-body { padding: 24px; display: flex; flex-direction: column; height: 100%; }
 
-        /* Grid & Forms */
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; align-items: end; }
+        /* Helpers */
+        .mb-4 { margin-bottom: 16px; }
+        .mt-4 { margin-top: 16px; }
+        .w-full { width: 100%; }
+
+        /* Forms */
         .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
         .form-group label { font-size: 14px; font-weight: 600; color: var(--text-muted); }
         .form-input { background-color: var(--input-bg); color: var(--primary); padding: 12px 16px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 16px; font-family: monospace; outline: none; transition: 0.2s; font-weight: bold; width: 100%; }
@@ -64,13 +87,13 @@
         .btn-secondary:hover { background: #6366f1; /* Indigo hover for secondary */ color: white; }
 
         /* Stats & Alerts */
-        .stat-box { background: var(--success-bg); border: 1px solid rgba(74, 222, 128, 0.3); padding: 16px; border-radius: 8px; text-align: center; }
+        .stat-box { background: var(--success-bg); border: 1px solid rgba(59, 130, 246, 0.3); padding: 16px; border-radius: 8px; text-align: center; }
         .stat-value { font-size: 28px; font-weight: 800; line-height: 1; margin-top: 4px; color: var(--success-text); }
         .stat-label { font-size: 12px; text-transform: uppercase; font-weight: 700; color: var(--success-text); opacity: 0.9; }
         .alert { background: var(--warning-bg); color: var(--warning-text); border: 1px solid rgba(251, 191, 36, 0.3); padding: 12px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; margin-bottom: 16px; display: none; }
 
         /* Output Areas */
-        .output-area { width: 100%; height: 250px; padding: 16px; border: 1px solid var(--border-color); border-radius: 8px; font-family: monospace; font-size: 14px; resize: vertical; background: var(--input-bg); color: var(--primary); white-space: pre; overflow-wrap: normal; overflow-x: auto; }
+        .output-area { width: 100%; flex-grow: 1; min-height: 250px; padding: 16px; border: 1px solid var(--border-color); border-radius: 8px; font-family: monospace; font-size: 14px; resize: vertical; background: var(--input-bg); color: var(--primary); white-space: pre; overflow-wrap: normal; overflow-x: auto; }
         .output-area::placeholder { color: #71717a; }
         
         /* Copy Button */
@@ -99,29 +122,29 @@
         </div>
     </header>
 
-    <main class="container">
+    <main class="container main-grid">
         
         <!-- 1. DEFINIÇÃO DO RANGE -->
         <div class="card">
             <div class="card-header">1. Define Initial Range</div>
-            <div class="card-body grid-2">
-                <div>
-                    <div class="form-group">
-                        <label for="start-num">Start Number (Start DDI)</label>
-                        <input type="text" id="start-num" class="form-input" placeholder="e.g., +551140001000" oninput="calculateRange()">
-                    </div>
-                    <div class="form-group mb-0">
-                        <label for="end-num">End Number (End DDI)</label>
-                        <input type="text" id="end-num" class="form-input" placeholder="e.g., +551140001099" oninput="calculateRange()">
-                    </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="start-num">Start Number (Start DDI)</label>
+                    <input type="text" id="start-num" class="form-input" placeholder="e.g., +551140001000" oninput="calculateRange()">
                 </div>
-                <div class="stat-box" style="display: flex; flex-direction: column; justify-content: center;">
+                <div class="form-group">
+                    <label for="end-num">End Number (End DDI)</label>
+                    <input type="text" id="end-num" class="form-input" placeholder="e.g., +551140001099" oninput="calculateRange()">
+                </div>
+                
+                <div id="range-alert" class="alert mt-4">The end number must be greater than or equal to the start number.</div>
+                
+                <div class="stat-box mt-4" style="display: flex; flex-direction: column; justify-content: center; flex-grow: 1;">
                     <div class="stat-label">Range Size</div>
                     <div class="stat-value" id="total-size">0</div>
                     <div style="font-size: 12px; margin-top: 8px; opacity: 0.8; color: var(--primary);">Total numbers identified</div>
                 </div>
             </div>
-            <div id="range-alert" class="alert mx-6">The end number must be greater than or equal to the start number.</div>
         </div>
 
         <!-- 2. QUEBRA DE RANGE (SPLITTER) -->
@@ -134,18 +157,16 @@
                 </button>
             </div>
             <div class="card-body">
-                <div class="grid-3 mb-4" style="margin-bottom: 20px;">
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label for="chunk-size">Chunk Size</label>
-                        <input type="number" id="chunk-size" class="form-input" placeholder="e.g., 10" value="10" min="1">
-                    </div>
-                    <div style="margin-bottom: 0;">
-                        <button class="btn btn-primary" onclick="splitRange()">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                            Split
-                        </button>
-                    </div>
+                <div class="form-group">
+                    <label for="chunk-size">Chunk Size</label>
+                    <input type="number" id="chunk-size" class="form-input" placeholder="e.g., 10" value="10" min="1">
                 </div>
+                
+                <button class="btn btn-primary mb-4" onclick="splitRange()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                    Split Output
+                </button>
+                
                 <textarea id="split-output" class="output-area" readonly placeholder="The new ranges will appear here after splitting.&#10;&#10;Output example:&#10;Start - End (Size)&#10;+551140001000 - +551140001009 (10)"></textarea>
             </div>
         </div>
@@ -153,20 +174,20 @@
         <!-- 3. LISTAGEM COMPLETA -->
         <div class="card">
             <div class="card-header">
-                <span>3. Complete Number List</span>
+                <span>3. Complete List</span>
                 <button class="copy-btn" onclick="copyText('list-output')">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                     Copy List
                 </button>
             </div>
             <div class="card-body">
-                <div style="margin-bottom: 20px; max-width: 250px;">
-                    <button class="btn btn-secondary" onclick="generateList()">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-                        Generate Complete List
-                    </button>
-                </div>
-                <div id="list-alert" class="alert">Warning: Generating a list with more than 50,000 numbers may freeze your browser. Please split the range first.</div>
+                <button class="btn btn-secondary mb-4" onclick="generateList()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                    Generate Complete List
+                </button>
+                
+                <div id="list-alert" class="alert mb-4">Warning: Generating a list with more than 50,000 numbers may freeze your browser. Please split the range first.</div>
+                
                 <textarea id="list-output" class="output-area" readonly placeholder="The number-by-number list will appear here."></textarea>
             </div>
         </div>
@@ -174,16 +195,16 @@
     </main>
 
     <script>
-        // --- SUPPORT FUNCTIONS FOR DDI (Handles large numbers and '+' signs) ---
+        // --- FUNÇÕES DE SUPORTE PARA DDI (Lida com grandes números e sinal de '+') ---
 
         /**
-         * Parses the input and converts it to BigInt (necessary for phone numbers > 15 digits)
+         * Analisa o input e converte para BigInt (necessário para números > 15 dígitos)
          */
         function parseDDI(str) {
             if (!str) return null;
             let val = str.trim();
             let hasPlus = val.startsWith('+');
-            let numStr = val.replace(/\D/g, ''); // Removes everything that is not a digit
+            let numStr = val.replace(/\D/g, ''); // Remove tudo exceto os dígitos
             
             if (numStr.length === 0) return null;
 
@@ -195,11 +216,11 @@
         }
 
         /**
-         * Reconstructs the phone number string with the '+' and leading zeros if needed
+         * Reconstrói a string do número de telefone com o '+' e zeros à esquerda, se necessário
          */
         function formatDDI(bigIntValue, originalLength, hasPlus) {
             let numStr = bigIntValue.toString();
-            // Pads with leading zeros if the increment loses the initial zero
+            // Preenche com zeros à esquerda se o incremento os perder
             while (numStr.length < originalLength) {
                 numStr = '0' + numStr;
             }
@@ -207,7 +228,7 @@
         }
 
         /**
-         * Gets current input values and validates them
+         * Obtém os valores atuais e os valida
          */
         function getRangeData() {
             const startInput = document.getElementById('start-num').value;
@@ -231,16 +252,16 @@
 
             alertBox.style.display = 'none';
             
-            // Calculates size using BigInt
+            // Calcula o tamanho utilizando BigInt
             const size = (end.value - start.value) + 1n; 
             
             return { start, end, size };
         }
 
 
-        // --- UI ACTIONS ---
+        // --- AÇÕES DE INTERFACE (UI) ---
 
-        // 1. Calculates the total range in real-time while typing
+        // 1. Calcula a gama (range) total em tempo real ao escrever
         function calculateRange() {
             const data = getRangeData();
             if (data) {
@@ -248,7 +269,7 @@
             }
         }
 
-        // 2. Splits the range into chunks
+        // 2. Divide (Split) a gama em blocos
         function splitRange() {
             const data = getRangeData();
             const outputArea = document.getElementById('split-output');
@@ -270,11 +291,11 @@
             let outputText = "Start DDI\tEnd DDI\tSize\n";
             outputText += "------------------------------------------------------\n";
 
-            // Splitting loop
+            // Ciclo de divisão
             while (current <= endLimit) {
                 let blockEnd = current + chunkSize - 1n;
                 if (blockEnd > endLimit) {
-                    blockEnd = endLimit; // Limits the last chunk to the end number
+                    blockEnd = endLimit; // Limita o último bloco ao número final
                 }
 
                 let startFormat = formatDDI(current, data.start.originalLength, data.start.hasPlus);
@@ -289,7 +310,7 @@
             outputArea.value = outputText;
         }
 
-        // 3. Generates the 1-by-1 number list
+        // 3. Gera a lista de números (1 a 1)
         function generateList() {
             const data = getRangeData();
             const outputArea = document.getElementById('list-output');
@@ -300,10 +321,10 @@
                 return;
             }
 
-            // Protection against freezing the browser
+            // Proteção para evitar bloquear o navegador
             if (data.size > 50000n) {
                 alertBox.style.display = 'block';
-                outputArea.value = "Security block triggered.\nThis range has " + data.size.toString() + " numbers.\nGenerating and displaying more than 50,000 lines at once may freeze your computer.\n\nPlease use the Split Range function above.";
+                outputArea.value = "Security block triggered.\nThis range has " + data.size.toString() + " numbers.\nGenerating and displaying more than 50,000 lines at once may freeze your computer.\n\nPlease use the Split Range function instead.";
                 return;
             } else {
                 alertBox.style.display = 'none';
@@ -311,7 +332,7 @@
 
             outputArea.value = "Generating list, please wait...";
 
-            // Using setTimeout to allow the loading message to render before the heavy loop
+            // Utiliza o setTimeout para permitir que a mensagem de loading seja renderizada antes do ciclo pesado
             setTimeout(() => {
                 let outputText = "";
                 for (let i = data.start.value; i <= data.end.value; i++) {
@@ -321,7 +342,7 @@
             }, 50);
         }
 
-        // --- UTILITIES ---
+        // --- UTILIDADES ---
         
         function copyText(elementId) {
             const textarea = document.getElementById(elementId);
@@ -330,10 +351,12 @@
             textarea.select();
             document.execCommand('copy');
             
-            // Visual feedback on the button
+            // Feedback visual no botão
             const btn = event.currentTarget;
             const originalHTML = btn.innerHTML;
             btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!`;
+            
+            // Alterado para aplicar a variável azul
             btn.style.color = 'var(--success-text)';
             
             setTimeout(() => {
