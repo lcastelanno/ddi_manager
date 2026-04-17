@@ -426,15 +426,12 @@
          ========================================== -->
     <script>
         // --- 1. Single Page Application (View Switcher) ---
-        let activeInputId = ''; // Global tracker for dial pad
+        let activeInputId = ''; 
 
         function switchView(viewName) {
-            // Hide all views
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-            // Show requested view
             document.getElementById(viewName + '-view').classList.add('active');
             
-            // Set active input for dial pad mapping
             if(viewName === 'splitter') {
                 activeInputId = 'start-num';
                 updateActiveInputUI();
@@ -446,7 +443,6 @@
             window.scrollTo(0,0);
         }
 
-        // Input Focus Tracking for Dial Pad
         ['start-num', 'end-num', 'phone-input'].forEach(id => {
             const el = document.getElementById(id);
             if(el) {
@@ -497,21 +493,27 @@
             input.focus();
         }
 
-        // Generic Copy
+        // Generic Copy - WITH EXCEL COPY/PASTE FIX
         function copyText(elementIdOrText) {
             let textToCopy = "";
-            
-            // Check if it's an ID or direct text
             const el = document.getElementById(elementIdOrText);
+            
             if (el) {
                 textToCopy = el.value;
                 if (!textToCopy || textToCopy.includes("wait") || textToCopy.includes("Please")) return;
-                el.select();
+                
+                // EXCEL FIX: Prepend single quote to numbers starting with '+' to prevent formulas/scientific notation
+                textToCopy = textToCopy.replace(/(^|\t)(\+)/gm, "$1'+");
+                
+                // Ensure Windows CRLF for proper row breaks when pasting
+                textToCopy = textToCopy.replace(/\r?\n/g, "\r\n");
+                
             } else {
                 textToCopy = elementIdOrText;
             }
 
-            const tempInput = document.createElement("input");
+            // USE TEXTAREA instead of INPUT for multiline copying
+            const tempInput = document.createElement("textarea");
             tempInput.value = textToCopy;
             document.body.appendChild(tempInput);
             tempInput.select();
@@ -522,7 +524,6 @@
             const originalColor = btn.style.color;
             const originalHTML = btn.innerHTML;
             
-            // Visual feedback
             if (el) {
                 btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!`;
             }
@@ -531,7 +532,7 @@
             setTimeout(() => {
                 if(el) btn.innerHTML = originalHTML;
                 btn.style.color = originalColor || "var(--text-muted)";
-                if(el) btn.style.color = '#c084fc'; // reset for buttons
+                if(el) btn.style.color = '#c084fc'; 
             }, 1000);
         }
 
@@ -593,7 +594,8 @@
             let endLimit = data.end.value;
             
             // Format adapted for perfect Excel copy-paste (Tabs instead of spaces/symbols)
-            let outputText = "Start DDI\tEnd DDI\tSize\n";
+            // Added explicit \r\n for Windows Clipboard reliability
+            let outputText = "Start DDI\tEnd DDI\tSize\r\n";
 
             while (current <= endLimit) {
                 let blockEnd = current + chunkSize - 1n;
@@ -602,8 +604,7 @@
                 let endFormat = formatDDI(blockEnd, data.end.originalLength, data.end.hasPlus);
                 let blockSize = (blockEnd - current + 1n).toString();
 
-                // Removed parentheses to keep data clean for Excel
-                outputText += `${startFormat}\t${endFormat}\t${blockSize}\n`;
+                outputText += `${startFormat}\t${endFormat}\t${blockSize}\r\n`;
                 current = blockEnd + 1n;
             }
             outputArea.value = outputText;
@@ -623,23 +624,31 @@
 
             outputArea.value = "Generating list, please wait...";
             setTimeout(() => {
-                let outputText = "DDI Number\n";
+                let outputText = "DDI Number\r\n";
                 for (let i = data.start.value; i <= data.end.value; i++) {
-                    outputText += formatDDI(i, data.start.originalLength, data.start.hasPlus) + "\n";
+                    outputText += formatDDI(i, data.start.originalLength, data.start.hasPlus) + "\r\n";
                 }
                 outputArea.value = outputText;
             }, 50);
         }
 
-        // --- Export CSV Logic ---
+        // --- Export CSV Logic - WITH EXCEL FORMAT FIX ---
         function downloadCSV(elementId, filename) {
             const el = document.getElementById(elementId);
             if (!el || !el.value || el.value.includes("wait") || el.value.includes("Please")) return;
 
-            // Converter Tabulações (\t) para Ponto e Vírgula (;) para garantir compatibilidade com Excel em PT/BR
-            let csvContent = el.value.replace(/\t/g, ';');
+            let text = el.value;
             
-            // Adicionar BOM UTF-8 no início do ficheiro para que o Excel identifique os caracteres corretamente
+            // EXCEL CSV FIX: Wrap numbers starting with '+' in ="..." to force text format
+            text = text.replace(/(^|\t)(\+\d+)/gm, '$1="$2"');
+
+            // Converter Tabulações (\t) para Ponto e Vírgula (;)
+            let csvContent = text.replace(/\t/g, ';');
+            
+            // Ensure Windows CRLF
+            csvContent = csvContent.replace(/\r?\n/g, "\r\n");
+            
+            // Adicionar BOM UTF-8
             const bom = "\uFEFF";
 
             // Criar o Blob e forçar o download
