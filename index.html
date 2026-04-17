@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telecom Tools Suite</title>
+
+    <!-- Integration: libphonenumber-js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/libphonenumber-js/1.10.49/libphonenumber-js.min.js"></script>
+
+    <style>
+        /* =========================================
+           PURE EMBEDDED CSS (100% OFFLINE)
+           GRAPHITE & PURPLE THEME
+           ========================================= */
+        :root {
+            --primary: #f8fafc;
+            --primary-hover: #ffffff;
+            --accent: #9333ea;
+            --accent-hover: #7e22ce;
+            --bg-body: #27272a;
+            --bg-card: #3f3f46;
+            --input-bg: #18181b;
+            --text-main: #f4f4f5;
+            --text-muted: #a1a1aa;
+            --border-color: #52525b;
+
+            --success-bg: rgba(59, 130, 246, 0.15);
+            --success-text: #60a5fa;
+            --warning-bg: rgba(217, 119, 6, 0.2);
+            --warning-text: #fbbf24;
+            --error-bg: rgba(228, 0, 43, 0.15);
+            --error-text: #f87171;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Views System (SPA) */
+        .view-section {
+            display: none;
+            width: 100%;
+            flex-grow: 1;
+        }
+
+        .view-section.active {
+            display: flex;
+            flex-direction: column;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            width: 100%;
+        }
+
+        /* ================= HOME VIEW STYLES ================= */
+        .home-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex-grow: 1;
+            padding: 60px 24px;
+        }
+
+        .hero {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .brand-logo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(147, 51, 234, 0.08);
+            border: 1px solid rgba(147, 51, 234, 0.2);
+            border-radius: 24px;
+            box-shadow: 0 8px 32px -8px rgba(147, 51, 234, 0.3);
+            margin-bottom: 24px;
+        }
+
+        .hero h1 {
+            font-size: 36px;
+            color: var(--primary);
+            letter-spacing: -0.5px;
+            margin-bottom: 12px;
+            font-weight: 800;
+        }
+
+        .hero p {
+            font-size: 18px;
+            color: var(--text-muted);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .app-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 16px;
+            padding: 32px;
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .app-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-8px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 0 0 4px rgba(147, 51, 234, 0.15);
+            background: #46464e;
+        }
+
+        .icon-wrapper {
+            background: var(--input-bg);
+            color: #d8b4fe;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.3s;
+            border: 1px solid var(--border-color);
+        }
+
+        .app-card:hover .icon-wrapper {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent-hover);
+        }
+
+        .app-card h2 {
+            font-size: 22px;
+            color: var(--primary);
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+
+        .app-card p {
+            font-size: 15px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .arrow-icon {
+            position: absolute;
+            top: 32px;
+            right: 32px;
+            color: var(--text-muted);
+            opacity: 0;
+            transform: translateX(-10px);
+            transition: all 0.3s;
+        }
+
+        .app-card:hover .arrow-icon {
+            opacity: 1;
+            transform: translateX(0);
+            color: var(--primary);
+        }
+
+        /* ================= TOOLS STYLES ================= */
+        .top-nav {
+            background: var(--input-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 8px 0;
+        }
+
+        .nav-container {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+        }
+
+        .nav-link {
+            cursor: pointer;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+            border: 1px solid transparent;
+        }
+
+        .nav-link:hover {
+            background: var(--bg-card);
+            color: var(--primary);
+            border-color: var(--border-color);
+        }
+
+        .nav-link.active {
+            background: rgba(147, 51, 234, 0.15);
+            color: #d8b4fe;
+            border-color: rgba(147, 51, 234, 0.3);
+        }
+
+        .tool-header {
+            background: var(--bg-card);
+            border-bottom: 4px solid var(--accent);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            padding: 20px 0;
+            margin-bottom: 32px;
+        }
+
+        .tool-header-content {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .small-logo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            background: rgba(147, 51, 234, 0.08);
+            border: 1px solid rgba(147, 51, 234, 0.2);
+            border-radius: 16px;
+        }
+
+        .tool-title h1 {
+            font-size: 26px;
+            color: var(--primary);
+            letter-spacing: -0.5px;
+            margin-bottom: 4px;
+        }
+
+        .tool-title p {
+            font-size: 15px;
+            color: var(--text-muted);
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            align-items: start;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: rgba(0, 0, 0, 0.15);
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-body {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .form-input {
+            background-color: var(--input-bg);
+            color: var(--primary);
+            padding: 16px 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 20px;
+            font-family: monospace;
+            outline: none;
+            transition: 0.2s;
+            font-weight: bold;
+            width: 100%;
+            letter-spacing: 1px;
+        }
+
+        .form-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.25);
+        }
+
+        .form-input.active-input {
+            border-color: var(--accent);
+            background: rgba(147, 51, 234, 0.05);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            border: none;
+            transition: 0.2s;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background: var(--border-color);
+            color: var(--primary);
+        }
+
+        .btn-secondary:hover {
+            background: #6366f1;
+            color: white;
+        }
+
+        .search-layout {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 24px;
+            align-items: start;
+        }
+
+        @media (max-width: 768px) {
+            .search-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .search-container {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        /* Dial Pad */
+        .dial-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.1);
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 16px;
+        }
+
+        .dial-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--primary);
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dial-btn:hover {
+            background: var(--border-color);
+            color: white;
+        }
+
+        .dial-btn:active {
+            background: var(--accent);
+            border-color: var(--accent);
+            transform: scale(0.95);
+        }
+
+        .dial-btn-action {
+            color: var(--accent);
+            background: rgba(147, 51, 234, 0.1);
+            border-color: rgba(147, 51, 234, 0.3);
+        }
+
+        /* Results & Outputs */
+        .stat-box {
+            background: var(--success-bg);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: auto;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 800;
+            line-height: 1;
+            margin-top: 4px;
+            color: var(--success-text);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--success-text);
+            opacity: 0.9;
+        }
+
+        .alert {
+            background: var(--warning-bg);
+            color: var(--warning-text);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .output-area {
+            width: 100%;
+            flex-grow: 1;
+            min-height: 250px;
+            padding: 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            resize: vertical;
+            background: var(--input-bg);
+            color: var(--primary);
+            white-space: pre;
+            overflow-wrap: normal;
+            overflow-x: auto;
+        }
+
+        .copy-btn {
+            background: none;
+            border: none;
+            color: #c084fc;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: 0.2s;
+        }
+
+        .copy-btn:hover {
+            color: #d8b4fe;
+            text-decoration: underline;
+        }
+
+        .result-box {
+            display: none;
+            padding: 24px;
+            border-radius: 8px;
+            border: 1px solid;
+            margin-top: 24px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .result-success {
+            background: var(--success-bg);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .result-error {
+            background: var(--error-bg);
+            border-color: rgba(228, 0, 43, 0.3);
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .result-item {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 16px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .result-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .result-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .copy-icon {
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: 0.2s;
+            float: right;
+        }
+
+        .copy-icon:hover {
+            color: var(--success-text);
+        }
+
+        .val-highlight {
+            color: var(--success-text);
+        }
+
+        .val-purple {
+            color: #d8b4fe;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: var(--warning-text);
+            margin-top: 10px;
+            font-style: italic;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 20px 0;
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--input-bg);
+            border-radius: 8px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 8px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #71717a;
+        }
+
+        footer {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13px;
+            opacity: 0.6;
+            padding: 20px;
+            margin-top: auto;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ==========================================
+         VIEW: HOME
+         ========================================== -->
+    <div id="home-view" class="view-section active">
+        <div class="home-wrapper">
+            <div class="hero">
+                <div class="brand-logo">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="url(#logo-grad)"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <defs>
+                            <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#c084fc" />
+                                <stop offset="100%" stop-color="#3b82f6" />
+                            </linearGradient>
+                        </defs>
+                        <circle cx="12" cy="12" r="2"></circle>
+                        <path
+                            d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48 0a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14">
+                        </path>
+                    </svg>
+                </div>
+                <h1>Telecom Tools Suite</h1>
+                <p>Select one of the applications below to access the workspace.</p>
+            </div>
+
+            <div class="apps-grid">
+                <!-- Card: Lookup -->
+                <div class="app-card" onclick="switchView('lookup')">
+                    <div class="icon-wrapper">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </div>
+                    <h2>DDI Search & Validator</h2>
+                    <p>Analyze phone numbers globally. Identify the country, line type (Fixed/Mobile), and generate the
+                        SIP URI format (RFC 3966).</p>
+                    <svg class="arrow-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                </div>
+
+                <!-- Card: Splitter -->
+                <div class="app-card" onclick="switchView('splitter')">
+                    <div class="icon-wrapper">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+                            </path>
+                        </svg>
+                    </div>
+                    <h2>DDI Range Manager</h2>
+                    <p>Calculate and split large blocks of phone numbers (DDIs) into smaller ranges for batch
+                        configurations and generate sequential number lists.</p>
+                    <svg class="arrow-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ==========================================
+         VIEW: SPLITTER
+         ========================================== -->
+    <div id="splitter-view" class="view-section">
+        <nav class="top-nav">
+            <div class="container nav-container">
+                <a onclick="switchView('home')" class="nav-link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                    Home
+                </a>
+                <a onclick="switchView('splitter')" class="nav-link active">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5">
+                        <path
+                            d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+                        </path>
+                    </svg>
+                    DDI Range Manager
+                </a>
+                <a onclick="switchView('lookup')" class="nav-link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    DDI Search & Validator
+                </a>
+            </div>
+        </nav>
+
+        <header class="tool-header">
+            <div class="container tool-header-content">
+                <div class="small-logo">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="url(#logo-grad-2)"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <defs>
+                            <linearGradient id="logo-grad-2" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#c084fc" />
+                                <stop offset="100%" stop-color="#3b82f6" />
+                            </linearGradient>
+                        </defs>
+                        <circle cx="12" cy="12" r="2"></circle>
+                        <path
+                            d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48 0a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14">
+                        </path>
+                    </svg>
+                </div>
+                <div class="tool-title">
+                    <h1>DDI Range Manager</h1>
+                    <p>Offline tool for number calculation, splitting, and list generation.</p>
+                </div>
+            </div>
+        </header>
+
+        <main class="container main-grid">
+            <div class="card">
+                <div class="card-header">1. Define Initial Range</div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label>Start Number (Start DDI)</label>
+                        <input type="text" id="start-num" class="form-input active-input" placeholder="+551140001000"
+                            oninput="calculateRange()">
+                    </div>
+                    <div class="form-group">
+                        <label>End Number (End DDI)</label>
+                        <input type="text" id="end-num" class="form-input" placeholder="+551140001099"
+                            oninput="calculateRange()">
+                    </div>
+
+                    <div class="dial-pad">
+                        <button class="dial-btn" onclick="typeChar('1')">1</button>
+                        <button class="dial-btn" onclick="typeChar('2')">2</button>
+                        <button class="dial-btn" onclick="typeChar('3')">3</button>
+                        <button class="dial-btn" onclick="typeChar('4')">4</button>
+                        <button class="dial-btn" onclick="typeChar('5')">5</button>
+                        <button class="dial-btn" onclick="typeChar('6')">6</button>
+                        <button class="dial-btn" onclick="typeChar('7')">7</button>
+                        <button class="dial-btn" onclick="typeChar('8')">8</button>
+                        <button class="dial-btn" onclick="typeChar('9')">9</button>
+                        <button class="dial-btn dial-btn-action" onclick="typeChar('+')">+</button>
+                        <button class="dial-btn" onclick="typeChar('0')">0</button>
+                        <button class="dial-btn dial-btn-action" onclick="deleteChar()">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path>
+                                <line x1="18" y1="9" x2="12" y2="15"></line>
+                                <line x1="12" y1="9" x2="18" y2="15"></line>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div id="range-alert" class="alert">The end number must be greater than or equal to the start
+                        number.</div>
+
+                    <div class="stat-box">
+                        <div class="stat-label">Range Size</div>
+                        <div class="stat-value" id="total-size">0</div>
+                        <div style="font-size: 12px; margin-top: 8px; opacity: 0.8;">Total numbers identified</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span>2. Split Range</span>
+                    <button class="copy-btn" onclick="copyText('split-output')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        Copy Table
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="form-group" style="margin-bottom: 24px;">
+                        <label>Chunk Size</label>
+                        <input type="number" id="chunk-size" class="form-input" placeholder="e.g., 10" value="10"
+                            min="1">
+                    </div>
+                    <button class="btn btn-primary" onclick="splitRange()" style="margin-bottom: 24px;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path
+                                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                            </path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
+                        Split Output
+                    </button>
+                    <textarea id="split-output" class="output-area" readonly
+                        placeholder="The new ranges will appear here."></textarea>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span>3. Complete List</span>
+                    <button class="copy-btn" onclick="copyText('list-output')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        Copy List
+                    </button>
+                </div>
+                <div class="card-body">
+                    <button class="btn btn-secondary" onclick="generateList()" style="margin-bottom: 24px;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="8" y1="6" x2="21" y2="6"></line>
+                            <line x1="8" y1="12" x2="21" y2="12"></line>
+                            <line x1="8" y1="18" x2="21" y2="18"></line>
+                            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                        </svg>
+                        Generate Complete List
+                    </button>
+                    <div id="list-alert" class="alert mb-4">Warning: Generating a list with more than 50,000 numbers may
+                        freeze your browser. Please split the range first.</div>
+                    <textarea id="list-output" class="output-area" readonly
+                        placeholder="The number-by-number list will appear here."></textarea>
+                </div>
+            </div>
+        </main>
+    </div>
+
+
+    <!-- ==========================================
+         VIEW: LOOKUP
+         ========================================== -->
+    <div id="lookup-view" class="view-section">
+        <nav class="top-nav">
+            <div class="container nav-container">
+                <a onclick="switchView('home')" class="nav-link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                    Home
+                </a>
+                <a onclick="switchView('splitter')" class="nav-link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5">
+                        <path
+                            d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+                        </path>
+                    </svg>
+                    DDI Range Manager
+                </a>
+                <a onclick="switchView('lookup')" class="nav-link active">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    DDI Search & Validator
+                </a>
+            </div>
+        </nav>
+
+        <header class="tool-header">
+            <div class="container tool-header-content">
+                <div class="small-logo">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="url(#logo-grad-3)"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <defs>
+                            <linearGradient id="logo-grad-3" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#c084fc" />
+                                <stop offset="100%" stop-color="#3b82f6" />
+                            </linearGradient>
+                        </defs>
+                        <circle cx="12" cy="12" r="2"></circle>
+                        <path
+                            d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48 0a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14">
+                        </path>
+                    </svg>
+                </div>
+                <div class="tool-title">
+                    <h1>DDI Search & Validator</h1>
+                    <p>Global Number Validator & SIP Routing Formatter</p>
+                </div>
+            </div>
+        </header>
+
+        <main class="container">
+            <div class="card">
+                <div class="card-header">Phone Number Lookup</div>
+                <div class="card-body">
+                    <div class="search-layout">
+                        <div class="form-group">
+                            <label>Enter the number with country code (e.g., +5511987654321):</label>
+                            <div class="search-container">
+                                <input type="text" id="phone-input" class="form-input" placeholder="+00 00 00000 0000"
+                                    onkeypress="handleEnter(event)">
+                                <button class="btn btn-primary" onclick="searchNumber()"
+                                    style="width: auto;">Analyze</button>
+                            </div>
+                            <div class="hint">Hint: Remember to include the country code (e.g., 44 for UK, 55 for
+                                Brazil).</div>
+
+                            <div id="result-box" class="result-box"></div>
+                        </div>
+
+                        <!-- Dial Pad for Lookup -->
+                        <div>
+                            <div class="dial-pad">
+                                <button class="dial-btn" onclick="typeChar('1')">1</button>
+                                <button class="dial-btn" onclick="typeChar('2')">2</button>
+                                <button class="dial-btn" onclick="typeChar('3')">3</button>
+                                <button class="dial-btn" onclick="typeChar('4')">4</button>
+                                <button class="dial-btn" onclick="typeChar('5')">5</button>
+                                <button class="dial-btn" onclick="typeChar('6')">6</button>
+                                <button class="dial-btn" onclick="typeChar('7')">7</button>
+                                <button class="dial-btn" onclick="typeChar('8')">8</button>
+                                <button class="dial-btn" onclick="typeChar('9')">9</button>
+                                <button class="dial-btn dial-btn-action" onclick="typeChar('+')">+</button>
+                                <button class="dial-btn" onclick="typeChar('0')">0</button>
+                                <button class="dial-btn dial-btn-action" onclick="deleteChar()">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path>
+                                        <line x1="18" y1="9" x2="12" y2="15"></line>
+                                        <line x1="12" y1="9" x2="18" y2="15"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <footer>
+        &copy; 2026 Telecom Engineering Tools • Offline Suite
+    </footer>
+
+    <!-- ==========================================
+         JAVASCRIPT LOGIC
+         ========================================== -->
+    <script>
+        // --- 1. Single Page Application (View Switcher) ---
+        let activeInputId = ''; // Global tracker for dial pad
+
+        function switchView(viewName) {
+            // Hide all views
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            // Show requested view
+            document.getElementById(viewName + '-view').classList.add('active');
+
+            // Set active input for dial pad mapping
+            if (viewName === 'splitter') {
+                activeInputId = 'start-num';
+                updateActiveInputUI();
+            } else if (viewName === 'lookup') {
+                activeInputId = 'phone-input';
+                updateActiveInputUI();
+            }
+
+            window.scrollTo(0, 0);
+        }
+
+        // Input Focus Tracking for Dial Pad
+        ['start-num', 'end-num', 'phone-input'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('focus', function () {
+                    activeInputId = this.id;
+                    updateActiveInputUI();
+                });
+            }
+        });
+
+        function updateActiveInputUI() {
+            document.querySelectorAll('.form-input').forEach(el => el.classList.remove('active-input'));
+            const activeEl = document.getElementById(activeInputId);
+            if (activeEl) activeEl.classList.add('active-input');
+        }
+
+        // --- 2. Generic Dial Pad Logic ---
+        function typeChar(char) {
+            const input = document.getElementById(activeInputId);
+            if (!input) return;
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+            const val = input.value;
+
+            input.value = val.slice(0, start) + char + val.slice(end);
+            input.selectionStart = input.selectionEnd = start + 1;
+
+            if (activeInputId === 'start-num' || activeInputId === 'end-num') calculateRange();
+            input.focus();
+        }
+
+        function deleteChar() {
+            const input = document.getElementById(activeInputId);
+            if (!input) return;
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+            const val = input.value;
+
+            if (start === end && start > 0) {
+                input.value = val.slice(0, start - 1) + val.slice(end);
+                input.selectionStart = input.selectionEnd = start - 1;
+            } else if (start !== end) {
+                input.value = val.slice(0, start) + val.slice(end);
+                input.selectionStart = input.selectionEnd = start;
+            }
+
+            if (activeInputId === 'start-num' || activeInputId === 'end-num') calculateRange();
+            input.focus();
+        }
+
+        // Generic Copy
+        function copyText(elementIdOrText) {
+            let textToCopy = "";
+
+            // Check if it's an ID or direct text
+            const el = document.getElementById(elementIdOrText);
+            if (el) {
+                textToCopy = el.value;
+                if (!textToCopy || textToCopy.includes("wait") || textToCopy.includes("Please")) return;
+                el.select();
+            } else {
+                textToCopy = elementIdOrText;
+            }
+
+            const tempInput = document.createElement("input");
+            tempInput.value = textToCopy;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+
+            const btn = event.currentTarget;
+            const originalColor = btn.style.color;
+            const originalHTML = btn.innerHTML;
+
+            // Visual feedback
+            if (el) {
+                btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!`;
+            }
+            btn.style.color = "var(--success-text)";
+
+            setTimeout(() => {
+                if (el) btn.innerHTML = originalHTML;
+                btn.style.color = originalColor || "var(--text-muted)";
+                if (el) btn.style.color = '#c084fc'; // reset for buttons
+            }, 1000);
+        }
+
+        // --- 3. Splitter Logic ---
+        function parseDDI(str) {
+            if (!str) return null;
+            let val = str.trim();
+            let hasPlus = val.startsWith('+');
+            let numStr = val.replace(/\D/g, '');
+            if (numStr.length === 0) return null;
+            return { originalLength: numStr.length, hasPlus: hasPlus, value: BigInt(numStr) };
+        }
+
+        function formatDDI(bigIntValue, originalLength, hasPlus) {
+            let numStr = bigIntValue.toString();
+            while (numStr.length < originalLength) { numStr = '0' + numStr; }
+            return hasPlus ? '+' + numStr : numStr;
+        }
+
+        function getRangeData() {
+            const startInput = document.getElementById('start-num').value;
+            const endInput = document.getElementById('end-num').value;
+            const alertBox = document.getElementById('range-alert');
+
+            const start = parseDDI(startInput);
+            const end = parseDDI(endInput);
+
+            if (!start || !end) {
+                document.getElementById('total-size').innerText = '0';
+                alertBox.style.display = 'none';
+                return null;
+            }
+
+            if (start.value > end.value) {
+                document.getElementById('total-size').innerText = '0';
+                alertBox.style.display = 'block';
+                return null;
+            }
+
+            alertBox.style.display = 'none';
+            const size = (end.value - start.value) + 1n;
+            return { start, end, size };
+        }
+
+        function calculateRange() {
+            const data = getRangeData();
+            if (data) document.getElementById('total-size').innerText = data.size.toString();
+        }
+
+        function splitRange() {
+            const data = getRangeData();
+            const outputArea = document.getElementById('split-output');
+            if (!data) { outputArea.value = "Please define a valid start and end number first."; return; }
+            let chunkSizeStr = document.getElementById('chunk-size').value;
+            if (!chunkSizeStr || parseInt(chunkSizeStr) < 1) { outputArea.value = "The chunk size must be at least 1."; return; }
+
+            const chunkSize = BigInt(chunkSizeStr);
+            let current = data.start.value;
+            let endLimit = data.end.value;
+            let outputText = "Start DDI\tEnd DDI\tSize\n------------------------------------------------------\n";
+
+            while (current <= endLimit) {
+                let blockEnd = current + chunkSize - 1n;
+                if (blockEnd > endLimit) blockEnd = endLimit;
+                let startFormat = formatDDI(current, data.start.originalLength, data.start.hasPlus);
+                let endFormat = formatDDI(blockEnd, data.end.originalLength, data.end.hasPlus);
+                let blockSize = (blockEnd - current + 1n).toString();
+
+                outputText += `${startFormat}\t${endFormat}\t(${blockSize})\n`;
+                current = blockEnd + 1n;
+            }
+            outputArea.value = outputText;
+        }
+
+        function generateList() {
+            const data = getRangeData();
+            const outputArea = document.getElementById('list-output');
+            const alertBox = document.getElementById('list-alert');
+            if (!data) { outputArea.value = "Please define a valid start and end number first."; return; }
+
+            if (data.size > 50000n) {
+                alertBox.style.display = 'block';
+                outputArea.value = "Security block triggered.\nThis range has " + data.size.toString() + " numbers.\nPlease use the Split Range function instead.";
+                return;
+            } else { alertBox.style.display = 'none'; }
+
+            outputArea.value = "Generating list, please wait...";
+            setTimeout(() => {
+                let outputText = "";
+                for (let i = data.start.value; i <= data.end.value; i++) {
+                    outputText += formatDDI(i, data.start.originalLength, data.start.hasPlus) + "\n";
+                }
+                outputArea.value = outputText;
+            }, 50);
+        }
+
+        // --- 4. Lookup Logic ---
+        function handleEnter(e) { if (e.key === "Enter" && activeInputId === 'phone-input') searchNumber(); }
+
+        function searchNumber() {
+            const input = document.getElementById('phone-input').value.trim();
+            if (!input) return;
+            let formattedInput = input.startsWith('+') ? input : '+' + input.replace(/\D/g, '');
+
+            try {
+                const phone = libphonenumber.parsePhoneNumber(formattedInput);
+                if (!phone.isValid()) {
+                    showError("Invalid or incomplete number for the detected country.");
+                    return;
+                }
+                showSuccess(phone);
+            } catch (err) {
+                showError("Format error. Make sure to use the international code (e.g., +44...)");
+            }
+        }
+
+        function showSuccess(p) {
+            const rb = document.getElementById('result-box');
+            rb.className = 'result-box result-success';
+            rb.style.display = 'block';
+
+            const e164 = p.format('E.164');
+            const uri = p.getURI();
+            const rawType = p.getType() || 'UNKNOWN';
+            const rawNumber = p.number.substring(1);
+
+            let typeLabel = rawType.replace('_', ' ');
+            let locationLabel = "General Country Region";
+            let areaCodeLabel = "N/A";
+
+            if (rawType === 'FIXED_LINE_OR_MOBILE') typeLabel = 'FIXED OR MOBILE';
+
+            if (p.country === 'BR') {
+                const ddd = rawNumber.substring(2, 4);
+                areaCodeLabel = `DDD ${ddd}`;
+            } else if (p.country === 'US' || p.country === 'CA') {
+                const npa = rawNumber.substring(1, 4);
+                areaCodeLabel = `NPA ${npa}`;
+            }
+
+            rb.innerHTML = `
+                <div class="result-label">International Format (E.164)</div>
+                <div class="result-value" style="font-size: 32px; color: var(--success-text); letter-spacing: 1px;">
+                    ${p.formatInternational()}
+                    <svg class="copy-icon" onclick="copyText('${e164}')" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                </div>
+                <div class="divider"></div>
+                <div class="result-grid">
+                    <div class="result-item">
+                        <div class="result-label">Country / ISO</div>
+                        <div class="result-value val-highlight">${p.country} (+${p.countryCallingCode})</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-label">Line Type</div>
+                        <div class="result-value val-purple" style="text-transform: capitalize;">${typeLabel.toLowerCase()}</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-label">Prefix / Area Code</div>
+                        <div class="result-value" style="font-family:monospace;">${areaCodeLabel}</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-label">National Format</div>
+                        <div class="result-value" style="font-family:monospace;">${p.formatNational()}</div>
+                    </div>
+                    <div class="result-item" style="grid-column: span auto;">
+                        <div class="result-label">SIP URI (RFC 3966) <svg class="copy-icon" onclick="copyText('${uri}')" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></div>
+                        <div class="result-value" style="font-size: 13px; opacity: 0.7; font-family:monospace; word-break: break-all;">${uri}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showError(msg) {
+            const rb = document.getElementById('result-box');
+            rb.className = 'result-box result-error';
+            rb.style.display = 'block';
+            rb.innerHTML = `<span style="font-weight:bold; color:var(--error-text)">${msg}</span>`;
+        }
+
+    </script>
+</body>
+
+</html>
