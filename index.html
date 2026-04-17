@@ -636,11 +636,14 @@
             const el = document.getElementById(elementId);
             if (!el || !el.value || el.value.includes("wait") || el.value.includes("Please")) return;
 
-            // Convert Tabs (\t) to Commas for standard CSV format
-            let csvContent = el.value.replace(/\t/g, ',');
+            // Converter Tabulações (\t) para Ponto e Vírgula (;) para garantir compatibilidade com Excel em PT/BR
+            let csvContent = el.value.replace(/\t/g, ';');
+            
+            // Adicionar BOM UTF-8 no início do ficheiro para que o Excel identifique os caracteres corretamente
+            const bom = "\uFEFF";
 
-            // Create a Blob and trigger download
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            // Criar o Blob e forçar o download
+            const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.setAttribute("href", url);
