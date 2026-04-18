@@ -57,7 +57,17 @@
         .hero h1 { font-size: 36px; color: var(--primary); letter-spacing: -0.5px; margin-bottom: 12px; font-weight: 800; }
         .hero p { font-size: 18px; color: var(--text-muted); max-width: 500px; margin: 0 auto; }
 
-        /* Download Button Style */
+        /* Download Buttons Style */
+        .download-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 32px;
+            animation: fadeIn 1s ease-out backwards;
+            animation-delay: 0.4s;
+        }
+        
         .download-badge {
             display: inline-flex;
             align-items: center;
@@ -71,15 +81,33 @@
             font-size: 14px;
             border: 1px solid rgba(96, 165, 250, 0.3);
             transition: all 0.2s;
-            margin-top: 24px;
-            animation: fadeIn 1s ease-out backwards;
-            animation-delay: 0.4s;
         }
         .download-badge:hover {
             background: rgba(96, 165, 250, 0.2);
             color: #93c5fd;
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(96, 165, 250, 0.15);
+        }
+
+        .download-badge-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(161, 161, 170, 0.1);
+            color: var(--text-muted);
+            padding: 12px 24px;
+            border-radius: 99px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            border: 1px solid rgba(161, 161, 170, 0.3);
+            transition: all 0.2s;
+        }
+        .download-badge-secondary:hover {
+            background: rgba(161, 161, 170, 0.2);
+            color: var(--text-main);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
         .apps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; width: 100%; max-width: 800px; margin: 0 auto; }
@@ -194,15 +222,25 @@
                 <h1>Telecom Tools Suite</h1>
                 <p>Select one of the applications below to access the workspace.</p>
                 
-                <!-- Download Python App Link -->
-                <a href="telecom_tools.exe" download class="download-badge">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
-                    Download Desktop App (.exe)
-                </a>
+                <div class="download-container">
+                    <!-- Download Python App Link -->
+                    <a href="telecom_tools.exe" download class="download-badge">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Download Desktop App (.exe)
+                    </a>
+                    
+                    <!-- Download MD5 Checksum -->
+                    <a href="telecom_tools.exe.md5" download class="download-badge-secondary" title="Verify file integrity">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                        MD5 Checksum
+                    </a>
+                </div>
             </div>
 
             <div class="apps-grid">
