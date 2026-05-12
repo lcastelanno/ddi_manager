@@ -1,873 +1,994 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telecom Tools Suite</title>
-    
-    <!-- Integration: libphonenumber-js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/libphonenumber-js/1.10.49/libphonenumber-js.min.js"></script>
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { 
+  Info, Upload, Download, Printer, Plus, Trash2, 
+  ChevronDown, Check, CheckCircle2, RotateCcw, AlertTriangle, Lock
+} from 'lucide-react';
 
-    <style>
-        /* =========================================
-           PURE EMBEDDED CSS (100% OFFLINE)
-           GRAPHITE & PURPLE THEME
-           ========================================= */
-        :root {
-            --primary: #f8fafc;
-            --primary-hover: #ffffff;
-            --accent: #9333ea; 
-            --accent-hover: #7e22ce; 
-            --bg-body: #27272a; 
-            --bg-card: #3f3f46; 
-            --input-bg: #18181b; 
-            --text-main: #f4f4f5;
-            --text-muted: #a1a1aa;
-            --border-color: #52525b; 
-            
-            --success-bg: rgba(59, 130, 246, 0.15); 
-            --success-text: #60a5fa; 
-            --warning-bg: rgba(217, 119, 6, 0.2);
-            --warning-text: #fbbf24;
-            --error-bg: rgba(228, 0, 43, 0.15);
-            --error-text: #f87171;
-        }
+// --- CUSTOM HOOK PARA PERSISTÊNCIA OFFLINE (LOCALSTORAGE) ---
+function useStickyState(defaultValue, key) {
+  const [value, setValue] = useState(() => {
+    try {
+      const stickyValue = window.localStorage.getItem(key);
+      return stickyValue !== null ? JSON.parse(stickyValue) : defaultValue;
+    } catch (error) {
+      console.warn("Error reading localStorage", error);
+      return defaultValue;
+    }
+  });
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-        
-        body { 
-            background-color: var(--bg-body); 
-            color: var(--text-main); 
-            line-height: 1.5; 
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+      console.error("Error setting localStorage (Quota exceeded?)", error);
+      if (error.name === 'QuotaExceededError') {
+        alert("Storage limit exceeded. Try uploading a smaller logo or clearing data.");
+      }
+    }
+  }, [key, value]);
 
-        /* Views System (SPA) */
-        .view-section { display: none; width: 100%; flex-grow: 1; }
-        .view-section.active { display: flex; flex-direction: column; animation: fadeIn 0.4s ease-out; }
+  return [value, setValue];
+}
 
-        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; width: 100%; }
+// --- INITIAL DATA ---
+const PREDEFINED_STAGES = [
+  'STAGE 1 - START-UP', 'STAGE 2 - INITIATION', 'STAGE 3 - PREPARATION', 
+  'STAGE 4 - MIGRATION', 'STAGE 5 - OPERATIONS'
+];
 
-        /* ================= HOME VIEW STYLES ================= */
-        .home-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; flex-grow: 1; padding: 60px 24px; }
-        .hero { text-align: center; margin-bottom: 60px; width: 100%; max-width: 600px; }
-        .brand-logo { display: inline-flex; align-items: center; justify-content: center; padding: 20px; background: rgba(147, 51, 234, 0.08); border: 1px solid rgba(147, 51, 234, 0.2); border-radius: 24px; box-shadow: 0 8px 32px -8px rgba(147, 51, 234, 0.3); margin-bottom: 24px; }
-        .hero h1 { font-size: 36px; color: var(--primary); letter-spacing: -0.5px; margin-bottom: 12px; font-weight: 800; }
-        .hero p { font-size: 18px; color: var(--text-muted); max-width: 500px; margin: 0 auto; }
+const STAGE_DISPLAY_NAMES = {
+  'STAGE 1 - START-UP': 'STAGE 1 - START-UP',
+  'STAGE 2 - INITIATION': 'STAGE 2 - INITIATION',
+  'STAGE 3 - PREPARATION': 'STAGE 3 - PREPARATION',
+  'STAGE 4 - MIGRATION': 'STAGE 4 - MIGRATION',
+  'STAGE 5 - OPERATIONS': 'STAGE 5 - OPERATIONS'
+};
 
-        /* Download Buttons Style */
-        .download-container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 16px;
-            margin-top: 32px;
-            animation: fadeIn 1s ease-out backwards;
-            animation-delay: 0.4s;
-        }
-        
-        .download-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(96, 165, 250, 0.1);
-            color: var(--success-text);
-            padding: 12px 24px;
-            border-radius: 99px;
-            text-decoration: none;
-            font-weight: 700;
-            font-size: 14px;
-            border: 1px solid rgba(96, 165, 250, 0.3);
-            transition: all 0.2s;
-        }
-        .download-badge:hover {
-            background: rgba(96, 165, 250, 0.2);
-            color: #93c5fd;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(96, 165, 250, 0.15);
-        }
+const BASE_TIMELINE_DATA = [
+  { id: 'TM-027', type: 'T-Minus', phase: 'STAGE 2 - INITIATION', tNum: 10, t: 'T-10', unit: 'Weeks', task: 'Provider to submit clean order forms for GSIP sites. Customer to follow-up with local provider for number portings.', ownerRole: 'Provider / Customer Delivery PM' },
+  { id: 'TM-029', type: 'T-Minus', phase: 'STAGE 2 - INITIATION', tNum: 9, t: 'T-09', unit: 'Weeks', task: 'Order headsets, replacement phones, PSTN lines for modems, lifts, and security systems.', ownerRole: 'Customer Impl PM' },
+  { id: 'TM-030', type: 'T-Minus', phase: 'STAGE 2 - INITIATION', tNum: 11, t: 'T-11', unit: 'Weeks', task: 'Order essential hardware (Gateways, Media Packs, Handsets).', ownerRole: 'Provider Delivery PM' },
+  { id: 'TM-101', type: 'T-Minus', phase: 'STAGE 3 - PREPARATION', tNum: 8, t: 'T-08', unit: 'Weeks', task: 'Ensure all O365 E3/E5 and Phone System licences are allocated to end-users.', ownerRole: 'Customer O365 Admin' },
+  { id: 'TM-102', type: 'T-Minus', phase: 'STAGE 3 - PREPARATION', tNum: 7, t: 'T-07', unit: 'Weeks', task: 'Provision Public IP addresses for SBC interfaces and configure network Firewalls.', ownerRole: 'Customer Network/Security' },
+  { id: 'TM-103', type: 'T-Minus', phase: 'STAGE 3 - PREPARATION', tNum: 6, t: 'T-06', unit: 'Weeks', task: 'Build base SBC VM/Appliance and install required Public SSL Certificates.', ownerRole: 'Provider Impl Eng' },
+  { id: 'TM-104', type: 'T-Minus', phase: 'STAGE 3 - PREPARATION', tNum: 5, t: 'T-05', unit: 'Weeks', task: 'Execute PowerShell pairing for SBC Direct Routing to Tenant.', ownerRole: 'Provider / Customer Teams Admin' },
+  { id: 'TM-105', type: 'T-Minus', phase: 'STAGE 3 - PREPARATION', tNum: 3, t: 'T-03', unit: 'Weeks', task: 'Perform end-to-end PSTN test calls using restricted pilot user group.', ownerRole: 'Provider / Customer All' },
+  { id: 'TM-106', type: 'T-Minus', phase: 'STAGE 3 - PREPARATION', tNum: 2, t: 'T-02', unit: 'Weeks', task: 'Readiness Sign-off: Executive confirmation to proceed with the migration window.', ownerRole: 'Customer Impl PM' },
+  
+  { id: 'RB-001', type: 'Runbook', phase: 'STAGE 1 - START-UP', tNum: 13, t: 'T-13', unit: 'Weeks', task: 'Schedule and host the official Site Implementation Kick-off session.', ownerRole: 'Provider Impl PM' },
+  { id: 'RB-002', type: 'Runbook', phase: 'STAGE 1 - START-UP', tNum: 12, t: 'T-12', unit: 'Weeks', task: 'MEETING: Conduct Kick-off and align project milestones.', ownerRole: 'All' },
+  { id: 'RB-003', type: 'Runbook', phase: 'STAGE 1 - START-UP', tNum: 12, t: 'T-12', unit: 'Weeks', task: 'Collect technical parameters and finalize the Site Information Document (SID).', ownerRole: 'Provider / Customer Impl Eng' },
+  { id: 'RB-028', type: 'Runbook', phase: 'STAGE 2 - INITIATION', tNum: 11, t: 'T-11', unit: 'Weeks', task: 'Hardware quotations validated and approved by finance.', ownerRole: 'Provider Delivery PM' },
+  { id: 'RB-031', type: 'Runbook', phase: 'STAGE 3 - PREPARATION', tNum: 10, t: 'T-10', unit: 'Weeks', task: 'Allocate IP subnets for local voice devices (AudioCodes, Poly, etc).', ownerRole: 'Customer Impl PM' },
+  { id: 'RB-032', type: 'Runbook', phase: 'STAGE 3 - PREPARATION', tNum: 9, t: 'T-09', unit: 'Weeks', task: 'Draft and approve End-User migration communication templates.', ownerRole: 'Customer Impl PM' },
+  { id: 'RB-033', type: 'Runbook', phase: 'STAGE 3 - PREPARATION', tNum: 2, t: 'T-02', unit: 'Weeks', task: 'Submit Change Management (CRQ) request for the migration event.', ownerRole: 'Customer Impl PM' },
+  { id: 'RB-034', type: 'Runbook', phase: 'STAGE 3 - PREPARATION', tNum: 1, t: 'T-01', unit: 'Weeks', task: 'Pre-migration Go/No-Go checkpoint call with all stakeholders.', ownerRole: 'Provider / Customer All' },
+  { id: 'RB-014', type: 'Runbook', phase: 'STAGE 4 - MIGRATION', tNum: 0, t: '01:30', unit: 'Hours', task: 'Redirect SIP traffic to Teams and execute automated user voice assignments.', ownerRole: 'Provider Impl Eng' },
+  { id: 'RB-015', type: 'Runbook', phase: 'STAGE 4 - MIGRATION', tNum: 0, t: '03:30', unit: 'Hours', task: 'Migration UAT: Verify voice services on-site and provide sign-off.', ownerRole: 'Customer Impl PM' },
+  { id: 'RB-016', type: 'Runbook', phase: 'STAGE 4 - MIGRATION', tNum: 0, t: '04:00', unit: 'Hours', task: 'Notification: Site successfully migrated to Teams Phone System.', ownerRole: 'Provider Impl PM' },
+  { id: 'RB-017', type: 'Runbook', phase: 'STAGE 4 - MIGRATION', tNum: 0, t: '04:00', unit: 'Hours', task: 'Executive Report: Successful digital transformation of voice services.', ownerRole: 'Customer Impl PM' },
+  { id: 'RB-018', type: 'Runbook', phase: 'STAGE 4 - MIGRATION', tNum: -0.1, t: 'Standby', unit: 'FDOB', task: 'Remote standby support during First Day of Business (FDOB).', ownerRole: 'Provider / Customer All' },
+  { id: 'RB-019', type: 'Runbook', phase: 'STAGE 4 - MIGRATION', tNum: -0.1, t: 'Issues', unit: 'FDOB', task: 'Collect and raise migration related issues to Provider project team. Changes will only be performed after validation of the request', ownerRole: 'Customer Impl PM' },
+  { id: 'RB-020', type: 'Runbook', phase: 'STAGE 4 - MIGRATION', tNum: -0.1, t: 'Fix', unit: 'FDOB', task: 'Troubleshoot ISSUES raised', ownerRole: 'Provider Impl Eng' },
+  { id: 'RB-021', type: 'Runbook', phase: 'STAGE 4 - MIGRATION', tNum: -0.1, t: 'Review', unit: 'FDOB', task: 'Post Implementation review - Sign-off Migration', ownerRole: 'Provider Impl PM' },
+  { id: 'RB-022', type: 'Runbook', phase: 'STAGE 4 - MIGRATION', tNum: -0.1, t: 'Actions', unit: 'FDOB', task: 'EMAIL: Document outstanding actions for the site and agree responsibilities', ownerRole: 'Provider Impl PM' },
+  { id: 'RB-001-Ops', type: 'Runbook', phase: 'STAGE 5 - OPERATIONS', tNum: -0.2, t: 'Handover', unit: 'Post', task: 'Transition site to the 24/7 Global Operational Support Team.', ownerRole: 'Provider' },
+  { id: 'RB-003-Ops', type: 'Runbook', phase: 'STAGE 5 - OPERATIONS', tNum: -0.2, t: 'BAU', unit: 'Post', task: 'Reinforce Business As Usual (BAU) support processes.', ownerRole: 'Customer' }
+];
 
-        .download-badge-secondary {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(161, 161, 170, 0.1);
-            color: var(--text-muted);
-            padding: 12px 24px;
-            border-radius: 99px;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 14px;
-            border: 1px solid rgba(161, 161, 170, 0.3);
-            transition: all 0.2s;
-        }
-        .download-badge-secondary:hover {
-            background: rgba(161, 161, 170, 0.2);
-            color: var(--text-main);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
+const DEFAULT_TASKS = BASE_TIMELINE_DATA.map(t => ({ ...t, manualStatus: 'Not Started', checked: false, deliveredDate: null }));
 
-        /* Readme / Security Box */
-        .readme-section {
-            margin-top: 24px;
-            background: rgba(0,0,0,0.15);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 16px 20px;
-            text-align: left;
-            animation: fadeIn 1s ease-out backwards;
-            animation-delay: 0.6s;
-        }
-        .readme-section h3 {
-            font-size: 14px;
-            color: var(--primary);
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .readme-section p {
-            font-size: 13px;
-            color: var(--text-muted);
-            margin-bottom: 12px;
-            line-height: 1.5;
-        }
-        .readme-section code {
-            display: block;
-            background: var(--input-bg);
-            padding: 10px 12px;
-            border-radius: 8px;
-            color: #d8b4fe;
-            font-family: monospace;
-            font-size: 12px;
-            border: 1px solid var(--border-color);
-            user-select: all; /* Easy select/copy */
-            cursor: text;
-        }
+export default function App() {
+  // --- AUTHENTICATION STATE ---
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return sessionStorage.getItem('migration_auth') === 'true';
+  });
+  const [passwordInput, setPasswordInput] = useState('');
+  const [authError, setAuthError] = useState(false);
 
-        .apps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; width: 100%; max-width: 800px; margin: 0 auto; }
-        .app-card { background: var(--bg-card); border: 2px solid var(--border-color); border-radius: 16px; padding: 32px; text-decoration: none; display: flex; flex-direction: column; align-items: flex-start; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden; cursor: pointer; }
-        .app-card:hover { border-color: var(--accent); transform: translateY(-8px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 0 0 4px rgba(147, 51, 234, 0.15); background: #46464e; }
-        .icon-wrapper { background: var(--input-bg); color: #d8b4fe; padding: 16px; border-radius: 12px; margin-bottom: 24px; display: flex; align-items: center; justify-content: center; transition: 0.3s; border: 1px solid var(--border-color); }
-        .app-card:hover .icon-wrapper { background: var(--accent); color: white; border-color: var(--accent-hover); }
-        .app-card h2 { font-size: 22px; color: var(--primary); margin-bottom: 12px; font-weight: 700; }
-        .app-card p { font-size: 15px; color: var(--text-muted); line-height: 1.6; }
-        .arrow-icon { position: absolute; top: 32px; right: 32px; color: var(--text-muted); opacity: 0; transform: translateX(-10px); transition: all 0.3s; }
-        .app-card:hover .arrow-icon { opacity: 1; transform: translateX(0); color: var(--primary); }
+  // A SENHA FICA AQUI (Mude para o que desejar)
+  const SECRET_PASSWORD = "admin"; 
 
-        /* ================= TOOLS STYLES ================= */
-        .top-nav { background: var(--input-bg); border-bottom: 1px solid var(--border-color); padding: 8px 0; }
-        .nav-container { display: flex; gap: 8px; overflow-x: auto; }
-        .nav-link { cursor: pointer; color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 6px; transition: 0.2s; display: flex; align-items: center; gap: 8px; white-space: nowrap; border: 1px solid transparent; }
-        .nav-link:hover { background: var(--bg-card); color: var(--primary); border-color: var(--border-color); }
-        .nav-link.active { background: rgba(147, 51, 234, 0.15); color: #d8b4fe; border-color: rgba(147, 51, 234, 0.3); }
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (passwordInput === SECRET_PASSWORD) {
+      sessionStorage.setItem('migration_auth', 'true');
+      setIsAuthenticated(true);
+      setAuthError(false);
+    } else {
+      setAuthError(true);
+    }
+  };
 
-        .tool-header { background: var(--bg-card); border-bottom: 4px solid var(--accent); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); padding: 20px 0; margin-bottom: 32px; }
-        .tool-header-content { display: flex; align-items: center; gap: 20px; }
-        .small-logo { display: inline-flex; align-items: center; justify-content: center; padding: 12px; background: rgba(147, 51, 234, 0.08); border: 1px solid rgba(147, 51, 234, 0.2); border-radius: 16px; }
-        .tool-title h1 { font-size: 26px; color: var(--primary); letter-spacing: -0.5px; margin-bottom: 4px; }
-        .tool-title p { font-size: 15px; color: var(--text-muted); }
+  const handleLogout = () => {
+    sessionStorage.removeItem('migration_auth');
+    setIsAuthenticated(false);
+  };
 
-        .main-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; align-items: start; }
-        @media (max-width: 1024px) { .main-grid { grid-template-columns: 1fr; } }
-        
-        .card { background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 24px; overflow: hidden; }
-        .card-header { background: rgba(0,0,0,0.15); padding: 16px 24px; border-bottom: 1px solid var(--border-color); font-weight: 700; color: var(--primary); display: flex; justify-content: space-between; align-items: center; }
-        .card-body { padding: 24px; display: flex; flex-direction: column; height: 100%; }
-
-        .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-        .form-group label { font-size: 14px; font-weight: 600; color: var(--text-muted); }
-        .form-input { background-color: var(--input-bg); color: var(--primary); padding: 16px 20px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 20px; font-family: monospace; outline: none; transition: 0.2s; font-weight: bold; width: 100%; letter-spacing: 1px; }
-        .form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.25); }
-        .form-input.active-input { border-color: var(--accent); background: rgba(147, 51, 234, 0.05); }
-        
-        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 24px; border-radius: 8px; font-weight: 600; font-size: 15px; cursor: pointer; border: none; transition: 0.2s; width: 100%; }
-        .btn-primary { background: var(--accent); color: white; }
-        .btn-primary:hover { background: var(--accent-hover); }
-        .btn-secondary { background: var(--border-color); color: var(--primary); }
-        .btn-secondary:hover { background: #6366f1; color: white; }
-
-        .search-layout { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: start; }
-        @media (max-width: 768px) { .search-layout { grid-template-columns: 1fr; } }
-        .search-container { display: flex; gap: 12px; margin-top: 8px; }
-        
-        /* Dial Pad */
-        .dial-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: rgba(0,0,0,0.1); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 16px; }
-        .dial-btn { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--primary); padding: 14px; border-radius: 8px; font-size: 20px; font-weight: bold; cursor: pointer; transition: 0.1s; display: flex; align-items: center; justify-content: center; }
-        .dial-btn:hover { background: var(--border-color); color: white; }
-        .dial-btn:active { background: var(--accent); border-color: var(--accent); transform: scale(0.95); }
-        .dial-btn-action { color: var(--accent); background: rgba(147, 51, 234, 0.1); border-color: rgba(147, 51, 234, 0.3); }
-
-        /* Results & Outputs */
-        .stat-box { background: var(--success-bg); border: 1px solid rgba(59, 130, 246, 0.3); padding: 16px; border-radius: 8px; text-align: center; margin-top: auto; }
-        .stat-value { font-size: 28px; font-weight: 800; line-height: 1; margin-top: 4px; color: var(--success-text); }
-        .stat-label { font-size: 12px; text-transform: uppercase; font-weight: 700; color: var(--success-text); opacity: 0.9; }
-        .alert { background: var(--warning-bg); color: var(--warning-text); border: 1px solid rgba(251, 191, 36, 0.3); padding: 12px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; margin-bottom: 16px; display: none; }
-        
-        .output-area { width: 100%; flex-grow: 1; min-height: 250px; padding: 16px; border: 1px solid var(--border-color); border-radius: 8px; font-family: monospace; font-size: 14px; resize: vertical; background: var(--input-bg); color: var(--primary); white-space: pre; overflow-wrap: normal; overflow-x: auto; }
-        .copy-btn { background: none; border: none; color: #c084fc; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: 0.2s; }
-        .copy-btn:hover { color: #d8b4fe; text-decoration: underline; }
-
-        .result-box { display: none; padding: 24px; border-radius: 8px; border: 1px solid; margin-top: 24px; animation: fadeIn 0.3s ease; }
-        .result-success { background: var(--success-bg); border-color: rgba(59, 130, 246, 0.3); }
-        .result-error { background: var(--error-bg); border-color: rgba(228, 0, 43, 0.3); }
-        
-        .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 20px; }
-        .result-item { background: rgba(0,0,0,0.2); padding: 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; justify-content: space-between; }
-        .result-label { font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px; }
-        .result-value { font-size: 18px; font-weight: bold; color: var(--primary); }
-        
-        .copy-icon { cursor: pointer; color: var(--text-muted); transition: 0.2s; float: right; }
-        .copy-icon:hover { color: var(--success-text); }
-        .val-highlight { color: var(--success-text); }
-        .val-purple { color: #d8b4fe; }
-        .hint { font-size: 12px; color: var(--warning-text); margin-top: 10px; font-style: italic; }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .divider { height: 1px; background: rgba(255,255,255,0.1); margin: 20px 0; }
-
-        ::-webkit-scrollbar { width: 10px; height: 10px; }
-        ::-webkit-scrollbar-track { background: var(--input-bg); border-radius: 8px; }
-        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 8px; }
-        ::-webkit-scrollbar-thumb:hover { background: #71717a; }
-
-        footer { text-align: center; color: var(--text-muted); font-size: 13px; opacity: 0.6; padding: 20px; margin-top: auto; }
-    </style>
-</head>
-<body>
-
-    <!-- ==========================================
-         VIEW: HOME
-         ========================================== -->
-    <div id="home-view" class="view-section active">
-        <div class="home-wrapper">
-            <div class="hero">
-                <div class="brand-logo">
-                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="url(#logo-grad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <defs>
-                            <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stop-color="#c084fc" />
-                                <stop offset="100%" stop-color="#3b82f6" />
-                            </linearGradient>
-                        </defs>
-                        <circle cx="12" cy="12" r="2"></circle>
-                        <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48 0a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
-                    </svg>
-                </div>
-                <h1>Telecom Tools Suite</h1>
-                <p>Select one of the applications below to access the workspace.</p>
-                
-                <div class="download-container">
-                    <!-- Download Python App Link -->
-                    <a href="telecom_tools.exe" download class="download-badge">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        Download Desktop App (.exe)
-                    </a>
-                    
-                    <!-- Download MD5 Checksum -->
-                    <a href="telecom_tools.exe.md5" download class="download-badge-secondary" title="Verify file integrity">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                        </svg>
-                        MD5 Checksum
-                    </a>
-                </div>
-
-                <!-- README / Security Tip Box -->
-                <div class="readme-section">
-                    <h3>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                        Security Tip: Verify File Integrity
-                    </h3>
-                    <p>To ensure the downloaded executable has not been corrupted or altered, you can verify its MD5 checksum. Open your Windows Command Prompt (CMD) in the download folder and run the following command:</p>
-                    <code>CertUtil -hashfile telecom_tools.exe MD5</code>
-                    <p style="margin-top: 8px; margin-bottom: 0;">Compare the output hash with the contents of the downloaded <strong>.md5</strong> file.</p>
-                </div>
-            </div>
-
-            <div class="apps-grid">
-                <!-- Card: Lookup -->
-                <div class="app-card" onclick="switchView('lookup')">
-                    <div class="icon-wrapper">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                    </div>
-                    <h2>DDI Search & Validator</h2>
-                    <p>Analyze phone numbers globally. Identify the country, line type (Fixed/Mobile), and generate the SIP URI format (RFC 3966).</p>
-                    <svg class="arrow-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-                </div>
-
-                <!-- Card: Splitter -->
-                <div class="app-card" onclick="switchView('splitter')">
-                    <div class="icon-wrapper">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-                        </svg>
-                    </div>
-                    <h2>DDI Range Manager</h2>
-                    <p>Calculate and split large blocks of phone numbers (DDIs) into smaller ranges for batch configurations and generate sequential number lists.</p>
-                    <svg class="arrow-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-                </div>
-            </div>
+  // TELA DE BLOQUEIO
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#f4f4f5] flex items-center justify-center p-4 selection:bg-[#2563eb] selection:text-white">
+        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-sm w-full border border-gray-200 text-center">
+          <div className="w-16 h-16 bg-[#2563eb]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Lock size={32} className="text-[#2563eb]" />
+          </div>
+          <h2 className="text-2xl font-black text-[#1b222b] mb-2">Acesso Restrito</h2>
+          <p className="text-sm text-gray-500 font-bold mb-8">Insira a credencial para acessar o painel de migração.</p>
+          
+          <form onSubmit={handleLogin}>
+            <input 
+              type="password" 
+              placeholder="Senha de Acesso"
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              className={`w-full px-4 py-3 rounded-xl border ${authError ? 'border-red-500 bg-red-50' : 'border-gray-300 bg-gray-50'} text-center font-bold text-[#1b222b] outline-none focus:border-[#2563eb] transition-all mb-4`}
+            />
+            {authError && <p className="text-xs text-red-500 font-bold mb-4">Senha incorreta. Tente novamente.</p>}
+            <button type="submit" className="w-full py-3 bg-[#1b222b] hover:bg-[#2563eb] text-white rounded-xl font-black tracking-widest uppercase transition-colors shadow-md">
+              Acessar Dashboard
+            </button>
+          </form>
         </div>
-    </div>
+      </div>
+    );
+  }
 
+  // --- PERSISTENT STATE ---
+  const [tasks, setTasks] = useStickyState(DEFAULT_TASKS, 'migration_tasks_v1');
+  const [projectStart, setProjectStart] = useStickyState(new Date().toISOString().split('T')[0], 'migration_start_v1');
+  const [customerName, setCustomerName] = useStickyState('Customer', 'migration_cust_name_v1');
+  const [providerName, setProviderName] = useStickyState('Provider', 'migration_prov_name_v1');
+  const [customerLogo, setCustomerLogo] = useStickyState(null, 'migration_cust_logo_v1');
+  const [providerLogo, setProviderLogo] = useStickyState(null, 'migration_prov_logo_v1');
+  const [stakeholders, setStakeholders] = useStickyState([
+    { id: 1, name: 'John Doe', team: 'Provider', role: 'Project Manager', contact: 'john.doe@provider.com' }
+  ], 'migration_stakeholders_v1');
 
-    <!-- ==========================================
-         VIEW: SPLITTER
-         ========================================== -->
-    <div id="splitter-view" class="view-section">
-        <nav class="top-nav">
-            <div class="container nav-container">
-                <a onclick="switchView('home')" class="nav-link">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                    Home
-                </a>
-                <a onclick="switchView('splitter')" class="nav-link active">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                    DDI Range Manager
-                </a>
-                <a onclick="switchView('lookup')" class="nav-link">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                    DDI Search & Validator
-                </a>
+  // --- VOLATILE STATE ---
+  const [filter, setFilter] = useState('All');
+  const [collapsedStages, setCollapsedStages] = useState({});
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [addTaskStage, setAddTaskStage] = useState(null);
+  const [newTask, setNewTask] = useState({
+    id: '', type: 'Runbook', tNum: '', tDisplay: '', unit: 'Weeks', desc: '', owner: ''
+  });
+
+  const fileInputRef = useRef(null);
+
+  // --- PRINT STYLES (Injected once) ---
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @media print {
+        .no-print { display: none !important; }
+        body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        main { max-width: 100% !important; padding: 0 !important; }
+        .shadow-md, .shadow-sm, .shadow-2xl { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
+        header { position: static !important; border-bottom: 2px solid #1b222b !important; padding-bottom: 1rem !important; margin-bottom: 2rem !important; }
+        button, select, input[type="file"], label[for="csv-upload"] { display: none !important; }
+        input[type="text"], input[type="date"] { border: none !important; padding: 0 !important; background: transparent !important; }
+        .bg-white { background: white !important; }
+        .bg-\\[\\#f0efeb\\] { background: #fafafa !important; }
+        .print-border { border: 1px solid #d1d5db !important; }
+        .divide-y > * + * { border-top-width: 1px !important; border-color: #e5e7eb !important; }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
+
+  // --- DERIVED STATE ---
+  const tasksWithDates = useMemo(() => {
+    if (!projectStart) return tasks;
+    const startDate = new Date(projectStart + 'T12:00:00');
+    
+    return tasks.map(task => {
+      let expected = new Date(startDate);
+      const isWeeks = task.unit === 'Weeks' || task.unit === 'Semanas';
+      const isHours = task.unit === 'Hours' || task.unit === 'Horas';
+      
+      if (isWeeks) expected.setDate(expected.getDate() + ((13 - task.tNum) * 7));
+      else if (isHours) expected.setDate(expected.getDate() + (13 * 7));
+      else if (task.unit === 'FDOB') expected.setDate(expected.getDate() + (13 * 7) + 1);
+      else if (task.unit === 'Post') expected.setDate(expected.getDate() + (13 * 7) + 3);
+      else expected = null; // Fallback
+      
+      return { ...task, expectedDate: expected };
+    });
+  }, [tasks, projectStart]);
+
+  const filteredTasks = useMemo(() => {
+    return tasksWithDates.filter(t => filter === 'All' || t.type === filter);
+  }, [tasksWithDates, filter]);
+
+  const progressPercent = useMemo(() => {
+    if (!tasksWithDates.length) return 0;
+    const completed = tasksWithDates.filter(t => t.checked).length;
+    return Math.round((completed / tasksWithDates.length) * 100);
+  }, [tasksWithDates]);
+
+  // --- HANDLERS ---
+  const handleLogoUpload = useCallback((e, setter) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit for localStorage safety
+        alert("File is too large. Please upload an image under 2MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => setter(ev.target.result);
+      reader.readAsDataURL(file);
+    }
+  }, []);
+
+  const toggleCheck = useCallback((id) => {
+    if (!projectStart) {
+      alert("Please set the Project Kick-off Date first.");
+      return;
+    }
+    setTasks(prev => prev.map(t => {
+      if (t.id === id) {
+        const isChecked = !t.checked;
+        return { 
+          ...t, 
+          checked: isChecked, 
+          deliveredDate: isChecked ? new Date().toISOString() : null, // Save as ISO string for JSON
+          manualStatus: isChecked ? 'Completed' : 'Not Started'
+        };
+      }
+      return t;
+    }));
+  }, [projectStart, setTasks]);
+
+  const updateManualStatus = useCallback((id, status) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, manualStatus: status } : t));
+  }, [setTasks]);
+
+  const removeTask = useCallback((id) => {
+    if (window.confirm("Are you sure you want to permanently remove this action?")) {
+      setTasks(prev => prev.filter(t => t.id !== id));
+    }
+  }, [setTasks]);
+
+  const resetProject = useCallback(() => {
+    if (window.confirm("WARNING: This will erase all your custom tasks, stakeholders, and progress, resetting the project to default. Continue?")) {
+      setTasks(DEFAULT_TASKS);
+      setProjectStart(new Date().toISOString().split('T')[0]);
+      setCustomerName('Customer');
+      setProviderName('Provider');
+      setCustomerLogo(null);
+      setProviderLogo(null);
+      setStakeholders([{ id: 1, name: 'John Doe', team: 'Provider', role: 'Project Manager', contact: 'john.doe@provider.com' }]);
+      setIsInfoOpen(false);
+    }
+  }, [setTasks, setProjectStart, setCustomerName, setProviderName, setCustomerLogo, setProviderLogo, setStakeholders]);
+
+  const toggleStage = (stage) => setCollapsedStages(prev => ({ ...prev, [stage]: !prev[stage] }));
+
+  const expandCollapseAll = (expand) => {
+    const newState = {};
+    PREDEFINED_STAGES.forEach(s => newState[s] = !expand);
+    setCollapsedStages(newState);
+  };
+
+  const handleAddTaskSubmit = (e) => {
+    e.preventDefault();
+    const newTaskObj = {
+      id: newTask.id || `TSK-${Date.now().toString().slice(-4)}`,
+      type: newTask.type,
+      phase: addTaskStage,
+      tNum: parseFloat(newTask.tNum) || 0,
+      t: newTask.tDisplay || `T-${newTask.tNum}`,
+      unit: newTask.unit,
+      task: newTask.desc,
+      ownerRole: newTask.owner || 'Unassigned',
+      manualStatus: 'Not Started',
+      checked: false,
+      deliveredDate: null
+    };
+    setTasks(prev => [...prev, newTaskObj]);
+    setAddTaskStage(null);
+    setNewTask({ id: '', type: 'Runbook', tNum: '', tDisplay: '', unit: 'Weeks', desc: '', owner: '' });
+  };
+
+  // --- CSV LOGIC ---
+  const exportToCSV = () => {
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    csvContent += "ID,Type,Stage,T-Minus,Unit,Expected Date,Task Description,Action Owner,Status,Delivered Date\n";
+    
+    filteredTasks.forEach(item => {
+      let expected = item.expectedDate ? new Date(item.expectedDate).toLocaleDateString('en-GB') : '';
+      let delivered = item.deliveredDate ? new Date(item.deliveredDate).toLocaleDateString('en-GB') : '';
+      let finalRole = item.ownerRole.replace(/Customer/gi, customerName).replace(/Provider/gi, providerName);
+      let taskEscaped = `"${item.task.replace(/"/g, '""')}"`;
+      csvContent += `"${item.id}","${item.type}","${item.phase}","${item.t}","${item.unit}","${expected}",${taskEscaped},"${finalRole}","${item.manualStatus}","${delivered}"\n`;
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `migration_plan_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const parseCSVText = (text) => {
+    const result = [];
+    let row = [], cell = '', inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i], nextChar = text[i + 1];
+      if (char === '"' && inQuotes && nextChar === '"') { cell += '"'; i++; }
+      else if (char === '"') inQuotes = !inQuotes;
+      else if (char === ',' && !inQuotes) { row.push(cell.trim()); cell = ''; }
+      else if ((char === '\n' || char === '\r') && !inQuotes) {
+        if (char === '\r' && nextChar === '\n') i++; 
+        row.push(cell.trim()); result.push(row); row = []; cell = '';
+      } 
+      else cell += char;
+    }
+    if (cell || row.length > 0) { row.push(cell.trim()); result.push(row); }
+    return result;
+  };
+
+  const parseDateToISO = (dateStr) => {
+    if(!dateStr) return null;
+    const parts = dateStr.split('/');
+    if(parts.length === 3) {
+      // Assuming DD/MM/YYYY from our export
+      return new Date(parts[2], parts[1] - 1, parts[0]).toISOString();
+    }
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  };
+
+  const importFromCSV = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const text = ev.target.result;
+        const rows = parseCSVText(text);
+        if (rows.length < 2) throw new Error("Empty or invalid CSV structure.");
+        
+        const newTimelineData = [];
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i];
+          if (row.length < 9 || !row[0]) continue; // Skip malformed rows
+
+          const [id, type, phase, tDisplay, unit, , taskDesc, ownerRole, status, deliveredRaw] = row;
+          
+          let tNum = 0;
+          const uLower = unit.toLowerCase();
+          if (uLower === 'weeks' || uLower === 'semanas') {
+            const match = tDisplay.match(/-?\d+(\.\d+)?/);
+            tNum = match ? parseFloat(match[0]) : 0;
+            // Adjust sign if T- was used
+            if (tDisplay.includes('T-') && tNum > 0) tNum = Math.abs(tNum);
+          } else if (uLower === 'fdob') tNum = -0.1;
+          else if (uLower === 'post') tNum = -0.2;
+
+          const isCompleted = status === 'Completed' || status === 'Concluído';
+
+          newTimelineData.push({
+            id: id.replace(/['"]/g, ''), 
+            type: type.replace(/['"]/g, ''), 
+            phase: phase.replace(/['"]/g, ''), 
+            tNum, 
+            t: tDisplay.replace(/['"]/g, ''), 
+            unit: unit.replace(/['"]/g, ''), 
+            task: taskDesc, // Handled by parser
+            ownerRole: ownerRole.replace(/['"]/g, ''),
+            manualStatus: isCompleted ? 'Completed' : (status ? status.replace(/['"]/g, '') : 'Not Started'),
+            checked: isCompleted,
+            deliveredDate: deliveredRaw ? parseDateToISO(deliveredRaw.replace(/['"]/g, '')) : null
+          });
+        }
+        if (newTimelineData.length > 0) {
+          setTasks(newTimelineData);
+          alert(`Successfully imported ${newTimelineData.length} tasks.`);
+        }
+      } catch (err) {
+        alert("Error parsing CSV: " + err.message);
+      } finally {
+        e.target.value = ''; // Reset input
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // --- RENDER HELPERS ---
+  const getBadgeClass = (str) => {
+    const s = str.toLowerCase();
+    if (s.includes(providerName.toLowerCase()) || s.includes('provider')) 
+      return 'bg-[#2563eb]/10 text-[#2563eb] border-[#2563eb]/30 border';
+    if (s.includes(customerName.toLowerCase()) || s.includes('customer')) 
+      return 'bg-[#1b222b]/5 text-[#1b222b] border-[#1b222b]/20 border';
+    return 'bg-[#9fb4c4]/10 text-[#1b222b]/70 border-[#9fb4c4]/30 border';
+  };
+
+  const getStatusSelectClass = (status) => {
+    switch(status) {
+      case 'In Progress': return 'bg-[#2563eb]/10 text-[#2563eb] border-[#2563eb]/30 hover:bg-[#2563eb]/20';
+      case 'Need Attention': return 'bg-[#e11d48]/10 text-[#e11d48] border-[#e11d48]/30 hover:bg-[#e11d48]/20';
+      default: return 'bg-white text-[#1b222b]/60 border-[#9fb4c4]/40 hover:border-[#1b222b]/40';
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f4f4f5] text-[#1b222b] font-sans selection:bg-[#2563eb] selection:text-white">
+      
+      {/* HEADER */}
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-200 py-4 px-4 md:px-8 mb-6 shadow-sm no-print transition-all">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+          
+          {/* CUSTOMER SECTION */}
+          <div className="flex items-center gap-4 w-full md:w-1/3">
+            {customerLogo && (
+              <div className="w-24 h-12 md:w-32 md:h-14 rounded-lg bg-white border border-gray-200 flex items-center justify-center p-1.5 shadow-sm relative group overflow-hidden">
+                <img src={customerLogo} alt="Customer Logo" className="max-w-full max-h-full object-contain" />
+                <button onClick={() => setCustomerLogo(null)} className="absolute inset-0 bg-red-500/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity no-print">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            )}
+            <div>
+              <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Customer</span>
+              <input 
+                type="text" value={customerName} onChange={e => setCustomerName(e.target.value)}
+                className="bg-transparent border-b border-dashed border-gray-300 text-[#1b222b] text-base md:text-lg font-bold w-full max-w-[180px] outline-none focus:border-[#2563eb] transition-colors"
+                placeholder="Client Name"
+              />
+              {!customerLogo && (
+                <label className="cursor-pointer text-[9px] text-[#2563eb] hover:text-[#1d4ed8] font-bold mt-1 inline-block transition-colors no-print">
+                  + Add Logo <input type="file" className="hidden" accept="image/*" onChange={e => handleLogoUpload(e, setCustomerLogo)} />
+                </label>
+              )}
             </div>
-        </nav>
+          </div>
 
-        <header class="tool-header">
-            <div class="container tool-header-content">
-                <div class="small-logo">
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="url(#logo-grad-2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <defs>
-                            <linearGradient id="logo-grad-2" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stop-color="#c084fc" /><stop offset="100%" stop-color="#3b82f6" />
-                            </linearGradient>
-                        </defs>
-                        <circle cx="12" cy="12" r="2"></circle>
-                        <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48 0a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
-                    </svg>
-                </div>
-                <div class="tool-title">
-                    <h1>DDI Range Manager</h1>
-                    <p>Offline tool for number calculation, splitting, and list generation.</p>
-                </div>
+          {/* TITLE */}
+          <div className="text-center w-full md:w-1/3">
+            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-[#1b222b] flex items-center justify-center gap-2">
+              Migration Plan
+              <button 
+                onClick={() => setIsInfoOpen(true)} 
+                className="text-[10px] bg-gray-100 text-gray-500 border border-gray-200 px-2 py-1 rounded-md font-bold uppercase tracking-wider hover:bg-gray-200 hover:text-[#1b222b] transition-all flex items-center gap-1 no-print"
+                aria-label="Project Information"
+              >
+                <Info size={12} /> Info
+              </button>
+              <button 
+                onClick={handleLogout} 
+                className="text-[10px] bg-red-50 text-red-500 border border-red-100 px-2 py-1 rounded-md font-bold uppercase tracking-wider hover:bg-red-500 hover:text-white transition-all flex items-center gap-1 no-print"
+                title="Sair do sistema"
+              >
+                <Lock size={12} /> Sair
+              </button>
+            </h1>
+            <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-wide">Unified T-Minus & Runbook</p>
+          </div>
+
+          {/* PROVIDER SECTION */}
+          <div className="flex items-center justify-end gap-4 w-full md:w-1/3 text-right">
+            <div>
+              <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Provider</span>
+              <input 
+                type="text" value={providerName} onChange={e => setProviderName(e.target.value)}
+                className="bg-transparent border-b border-dashed border-gray-300 text-[#1b222b] text-base md:text-lg font-bold w-full max-w-[180px] outline-none focus:border-[#2563eb] transition-colors text-right"
+                placeholder="Your Company"
+              />
+               {!providerLogo && (
+                <label className="cursor-pointer text-[9px] text-[#2563eb] hover:text-[#1d4ed8] font-bold mt-1 inline-block transition-colors no-print">
+                  + Add Logo <input type="file" className="hidden" accept="image/*" onChange={e => handleLogoUpload(e, setProviderLogo)} />
+                </label>
+              )}
             </div>
-        </header>
+            {providerLogo && (
+              <div className="w-24 h-12 md:w-32 md:h-14 rounded-lg bg-white border border-gray-200 flex items-center justify-center p-1.5 shadow-sm relative group overflow-hidden">
+                <img src={providerLogo} alt="Provider Logo" className="max-w-full max-h-full object-contain" />
+                <button onClick={() => setProviderLogo(null)} className="absolute inset-0 bg-red-500/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity no-print">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            )}
+          </div>
 
-        <main class="container main-grid">
-            <div class="card">
-                <div class="card-header">1. Define Initial Range</div>
-                <div class="card-body">
-                    <div class="form-group">
-                        <label>Start Number (Start DDI)</label>
-                        <input type="text" id="start-num" class="form-input active-input" placeholder="+551140001000" oninput="calculateRange()">
-                    </div>
-                    <div class="form-group">
-                        <label>End Number (End DDI)</label>
-                        <input type="text" id="end-num" class="form-input" placeholder="+551140001099" oninput="calculateRange()">
-                    </div>
-                    
-                    <div class="dial-pad">
-                        <button class="dial-btn" onclick="typeChar('1')">1</button>
-                        <button class="dial-btn" onclick="typeChar('2')">2</button>
-                        <button class="dial-btn" onclick="typeChar('3')">3</button>
-                        <button class="dial-btn" onclick="typeChar('4')">4</button>
-                        <button class="dial-btn" onclick="typeChar('5')">5</button>
-                        <button class="dial-btn" onclick="typeChar('6')">6</button>
-                        <button class="dial-btn" onclick="typeChar('7')">7</button>
-                        <button class="dial-btn" onclick="typeChar('8')">8</button>
-                        <button class="dial-btn" onclick="typeChar('9')">9</button>
-                        <button class="dial-btn dial-btn-action" onclick="typeChar('+')">+</button>
-                        <button class="dial-btn" onclick="typeChar('0')">0</button>
-                        <button class="dial-btn dial-btn-action" onclick="deleteChar()">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path><line x1="18" y1="9" x2="12" y2="15"></line><line x1="12" y1="9" x2="18" y2="15"></line></svg>
-                        </button>
-                    </div>
+        </div>
+      </header>
 
-                    <div id="range-alert" class="alert">The end number must be greater than or equal to the start number.</div>
-                    
-                    <div class="stat-box">
-                        <div class="stat-label">Range Size</div>
-                        <div class="stat-value" id="total-size">0</div>
-                        <div style="font-size: 12px; margin-top: 8px; opacity: 0.8;">Total numbers identified</div>
-                    </div>
-                </div>
+      <main className="max-w-7xl mx-auto px-4 md:px-8 pb-24">
+        
+        {/* CONTROL BAR */}
+        <div className="bg-white border border-gray-200 p-4 md:p-5 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-center gap-5 mb-8 no-print">
+          <div className="flex items-center gap-6 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+            <div className="shrink-0">
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Project Kick-off Date</label>
+              <input 
+                type="date" value={projectStart} onChange={e => setProjectStart(e.target.value)}
+                className="bg-gray-50 border border-gray-200 text-[#1b222b] rounded-lg px-3 py-2 outline-none font-bold focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 text-sm transition-all"
+              />
             </div>
+            <div className="border-l border-gray-200 pl-6 pr-2 shrink-0 flex items-center gap-4">
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Progress</p>
+                <p className="text-2xl font-black text-[#55c977] leading-none mt-1">{progressPercent}%</p>
+              </div>
+              <div className="h-10 w-10 rounded-full border-4 border-gray-100 flex items-center justify-center relative">
+                 {/* Circular progress visual representation */}
+                 <div className="absolute inset-0 rounded-full border-4 border-[#55c977]" style={{ clipPath: `polygon(50% 50%, -50% -50%, ${progressPercent > 50 ? '150% -50%, 150% 150%, -50% 150%' : progressPercent + '% -50%'})`, transform: 'rotate(-45deg)'}}></div>
+              </div>
+            </div>
+          </div>
 
-            <div class="card">
-                <div class="card-header">
-                    <span>2. Split Range</span>
-                    <div style="display: flex; gap: 16px;">
-                        <button class="copy-btn" onclick="copyText('split-output')">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                            Copy Table
-                        </button>
-                        <button class="copy-btn" onclick="downloadCSV('split-output', 'ddi_split_ranges.csv')">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                            Export CSV
-                        </button>
+          <div className="flex flex-wrap md:flex-nowrap gap-3 w-full md:w-auto justify-end">
+            <label htmlFor="csv-upload" className="bg-white hover:bg-gray-50 border border-gray-200 text-[#1b222b] px-4 py-2 rounded-xl text-sm font-bold cursor-pointer transition-colors flex items-center justify-center gap-2 shadow-sm flex-1 md:flex-none">
+              <Upload size={16} className="text-[#2563eb]" /> Import
+              <input id="csv-upload" type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={importFromCSV} />
+            </label>
+            <button onClick={exportToCSV} className="bg-white hover:bg-gray-50 border border-gray-200 text-[#1b222b] px-4 py-2 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2 shadow-sm flex-1 md:flex-none">
+              <Download size={16} className="text-[#55c977]" /> Export
+            </button>
+            <button onClick={() => window.print()} className="bg-[#1b222b] hover:bg-[#2e3a4a] text-white px-5 py-2 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2 shadow-md flex-1 md:flex-none">
+              <Printer size={16} /> PDF
+            </button>
+          </div>
+        </div>
+
+        {/* TOP ROW: STAKEHOLDERS & LEGENDS */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <section className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm flex flex-col justify-center print-border">
+            <h3 className="text-sm font-black text-[#1b222b] flex items-center gap-2 uppercase tracking-wide mb-5">
+              <div className="w-2 h-2 rounded-full bg-[#2563eb]"></div>
+              Action Owners Legend
+            </h3>
+            <div className="flex flex-col gap-4 text-xs font-bold text-gray-500">
+              <p className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded-md text-[10px] uppercase tracking-wide ${getBadgeClass('Customer')}`}>Customer</span>
+                Action or Approval required.
+              </p>
+              <p className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded-md text-[10px] uppercase tracking-wide ${getBadgeClass('Provider')}`}>Provider</span> 
+                Engineering / Delivery.
+              </p>
+            </div>
+          </section>
+
+          <section className="lg:col-span-2 bg-white border border-gray-200 p-6 rounded-2xl shadow-sm flex flex-col print-border">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-black text-[#1b222b] flex items-center gap-2 uppercase tracking-wide">
+                <div className="w-2 h-2 rounded-full bg-[#55c977]"></div>
+                Project Stakeholders
+              </h3>
+              <button 
+                onClick={() => {
+                  const name = prompt("Name:"); if(!name) return;
+                  const team = prompt("Team (e.g., Provider, Customer):") || 'Team';
+                  const role = prompt("Role:") || 'Member';
+                  const contact = prompt("Contact Email/Phone:") || '-';
+                  setStakeholders(prev => [...prev, { id: Date.now(), name, team, role, contact }]);
+                }}
+                className="text-[#2563eb] hover:text-[#1d4ed8] bg-[#2563eb]/5 hover:bg-[#2563eb]/10 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors no-print"
+              >
+                + Add Member
+              </button>
+            </div>
+            <div className="overflow-x-auto flex-1">
+              <table className="w-full text-left text-xs whitespace-nowrap">
+                <thead className="text-gray-400 border-b border-gray-100 uppercase">
+                  <tr>
+                    <th className="pb-3 font-black tracking-wide pl-2">Name</th>
+                    <th className="pb-3 font-black tracking-wide">Team</th>
+                    <th className="pb-3 font-black tracking-wide">Role</th>
+                    <th className="pb-3 font-black tracking-wide">Contact</th>
+                    <th className="pb-3 font-black tracking-wide text-right pr-2 no-print">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 font-semibold text-[#1b222b]">
+                  {stakeholders.map(s => {
+                    const teamLabel = s.team.replace(/Provider/gi, providerName).replace(/Customer/gi, customerName);
+                    return (
+                      <tr key={s.id} className="hover:bg-gray-50 transition-colors group">
+                        <td className="py-3 pl-2">{s.name}</td>
+                        <td className="py-3 pr-4">
+                          <span className={`px-2 py-0.5 rounded text-[9px] uppercase tracking-wide ${getBadgeClass(teamLabel)}`}>{teamLabel}</span>
+                        </td>
+                        <td className="py-3 pr-4 text-gray-500">{s.role}</td>
+                        <td className="py-3 pr-4 text-[#2563eb] font-mono text-[10px]">{s.contact}</td>
+                        <td className="py-3 text-right pr-2 no-print opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => setStakeholders(prev => prev.filter(x => x.id !== s.id))} className="text-gray-300 hover:text-red-500 transition-colors p-1" aria-label="Delete stakeholder">
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  {stakeholders.length === 0 && (
+                    <tr><td colSpan="5" className="py-4 text-center text-gray-400 italic">No stakeholders added yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        {/* MACRO TIMELINE (PROGRESS) */}
+        <section className="bg-white border border-gray-200 p-8 rounded-2xl shadow-sm mb-8 overflow-x-auto print-border">
+          <h3 className="text-lg font-black mb-8 text-[#1b222b] flex items-center gap-2">
+            <span className="w-1.5 h-6 bg-[#2563eb] rounded-full"></span>
+            Migration Phase Progress
+          </h3>
+          
+          <div className="relative flex justify-between items-start w-full min-w-[700px] px-8 pt-4 pb-6">
+            {/* Background Track */}
+            <div className="absolute left-10 right-10 top-8 h-2 bg-gray-100 z-0 rounded-full"></div>
+            {/* Fill Track */}
+            <div className="absolute left-10 top-8 h-2 bg-[#2563eb] z-0 rounded-full transition-all duration-1000 ease-out shadow-sm" style={{ width: `${progressPercent}%` }}></div>
+
+            {[1, 2, 3, 4, 5].map(stageNum => {
+              const thresholds = [0, 15, 58, 73, 91];
+              const t = thresholds[stageNum-1];
+              const isDone = progressPercent >= (stageNum === 5 ? 100 : thresholds[stageNum]);
+              const isActive = progressPercent > t && !isDone;
+              
+              const stageTasks = filteredTasks.filter(task => task.phase === PREDEFINED_STAGES[stageNum-1]);
+              let datesText = "No Target Dates";
+              if (stageTasks.length > 0) {
+                const times = stageTasks.filter(t => t.expectedDate).map(t => new Date(t.expectedDate).getTime());
+                if(times.length > 0) {
+                   const min = new Date(Math.min(...times)).toLocaleDateString('en-GB', {day:'2-digit', month:'short'});
+                   const max = new Date(Math.max(...times)).toLocaleDateString('en-GB', {day:'2-digit', month:'short'});
+                   datesText = min === max ? min : `${min} - ${max}`;
+                }
+              }
+
+              return (
+                <div key={stageNum} className="flex flex-col items-center relative z-10 w-32 group cursor-default">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-lg border-4 transition-all duration-300 ${
+                    isDone ? 'bg-[#55c977] text-white border-[#55c977] shadow-md shadow-[#55c977]/30 scale-105' :
+                    isActive ? 'bg-[#2563eb] text-white border-[#2563eb] shadow-lg shadow-[#2563eb]/40 scale-110 ring-4 ring-[#2563eb]/20' :
+                    'bg-white text-gray-300 border-gray-200'
+                  }`}>
+                    {isDone ? <Check size={20} strokeWidth={4} /> : stageNum}
+                  </div>
+                  <p className={`mt-4 font-black text-sm text-center transition-colors ${isActive || isDone ? 'text-[#1b222b]' : 'text-gray-400'}`}>
+                    STAGE {stageNum}
+                  </p>
+                  <p className="text-[9px] font-black text-gray-500 px-2 py-1 mt-1 bg-gray-50 rounded uppercase tracking-widest border border-gray-100">
+                    {STAGE_DISPLAY_NAMES[PREDEFINED_STAGES[stageNum-1]].split(' - ')[1]}
+                  </p>
+                  {/* Tooltip */}
+                  <div className="text-[10px] text-center mt-2 text-gray-500 font-mono font-bold opacity-0 group-hover:opacity-100 transition-opacity absolute -bottom-6 whitespace-nowrap bg-white px-3 py-1 rounded-md shadow-lg border border-gray-100 z-50 pointer-events-none">
+                    {datesText}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* GANTT CHART (CSS-BASED VISUAL) */}
+        <section className="bg-white border border-gray-200 p-8 rounded-2xl shadow-sm mb-10 overflow-x-auto print-border">
+          <h3 className="text-lg font-black mb-6 text-[#1b222b] flex items-center gap-2">
+            <span className="w-1.5 h-6 bg-gray-300 rounded-full"></span>
+            Visual Schedule (Gantt Macro)
+          </h3>
+          <div className="min-w-[700px] border border-gray-100 rounded-xl p-6 bg-gray-50/50">
+            <div className="flex text-[10px] font-black text-gray-400 uppercase mb-4 border-b border-gray-200 pb-3 tracking-widest">
+              <div className="w-1/4">Phase Flow</div>
+              <div className="w-3/4 flex justify-between px-2">
+                <span>T-13 Wks</span><span>T-10 Wks</span><span>T-6 Wks</span><span>T-2 Wks</span><span className="text-[#e11d48]">Migration</span><span>Post-Ops</span>
+              </div>
+            </div>
+            <div className="space-y-4 relative mt-4">
+              {/* Vertical Dashed Lines */}
+              <div className="absolute inset-0 flex ml-[25%] pointer-events-none">
+                {[1,2,3,4,5].map(i => <div key={i} className="flex-1 border-l border-dashed border-gray-200"></div>)}
+              </div>
+              
+              {/* Bars */}
+              {[
+                { label: 'S1: Start-Up', w: '20%', ml: '0%', bg: 'bg-gray-200', text: 'text-gray-700', border: 'border-gray-300' },
+                { label: 'S2: Initiation', w: '40%', ml: '15%', bg: 'bg-[#2563eb]', text: 'text-white', border: 'border-[#2563eb]' },
+                { label: 'S3: Preparation', w: '15%', ml: '50%', bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-200' },
+                { label: 'S4: Migration', w: '5%', ml: '65%', bg: 'bg-[#e11d48]', text: 'text-white', border: 'border-[#be123c]' },
+                { label: 'S5: Operations', w: '25%', ml: '70%', bg: 'bg-[#55c977]/20', text: 'text-[#10b981]', border: 'border-[#55c977]/40' }
+              ].map((bar, idx) => (
+                <div key={idx} className="flex items-center text-xs font-bold text-[#1b222b] relative z-10 hover:bg-white p-1 rounded transition-colors">
+                  <div className="w-1/4 pl-2">{bar.label}</div>
+                  <div className="w-3/4">
+                    <div className={`${bar.bg} ${bar.text} border ${bar.border} h-7 rounded-md shadow-sm text-[10px] font-black flex items-center justify-center transition-all hover:brightness-105`} style={{ width: bar.w, marginLeft: bar.ml }}>
+                      S{idx+1}
                     </div>
+                  </div>
                 </div>
-                <div class="card-body">
-                    <div class="form-group" style="margin-bottom: 24px;">
-                        <label>Chunk Size</label>
-                        <input type="number" id="chunk-size" class="form-input" placeholder="e.g., 10" value="10" min="1">
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* TASK LIST CONTROLS */}
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 mt-8 border-b border-gray-200 pb-5 gap-4 no-print">
+          <div className="flex items-center gap-4 w-full sm:w-auto">
+            <span className="text-xs font-black text-gray-400 uppercase tracking-widest hidden md:inline">Filter:</span>
+            <select 
+              value={filter} onChange={e => setFilter(e.target.value)}
+              className="bg-white border border-gray-300 rounded-lg text-sm font-bold text-[#1b222b] px-4 py-2 outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 cursor-pointer transition-all shadow-sm w-full sm:w-auto"
+            >
+              <option value="All">All Actions (Unified View)</option>
+              <option value="T-Minus">T-Minus Prep Only</option>
+              <option value="Runbook">Execution Runbook Only</option>
+            </select>
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <button onClick={() => expandCollapseAll(false)} className="flex-1 sm:flex-none text-xs font-bold text-gray-500 hover:text-[#1b222b] bg-white border border-gray-200 hover:bg-gray-50 px-4 py-2.5 rounded-lg transition-colors shadow-sm">Collapse All</button>
+            <button onClick={() => expandCollapseAll(true)} className="flex-1 sm:flex-none text-xs font-bold text-gray-500 hover:text-[#1b222b] bg-white border border-gray-200 hover:bg-gray-50 px-4 py-2.5 rounded-lg transition-colors shadow-sm">Expand All</button>
+          </div>
+        </div>
+
+        {/* TASK LIST CONTAINER */}
+        <div className="space-y-6">
+          {filteredTasks.length === 0 ? (
+            <div className="text-center p-16 bg-white border border-dashed border-gray-300 rounded-2xl shadow-sm">
+              <p className="text-gray-400 font-bold text-lg">No actions match the current filters.</p>
+              <p className="text-sm text-gray-400 mt-2">Adjust your filters or add new tasks.</p>
+            </div>
+          ) : (
+            PREDEFINED_STAGES.map((stage) => {
+              const stageTasks = filteredTasks.filter(t => t.phase === stage).sort((a,b) => b.tNum - a.tNum);
+              if (stageTasks.length === 0) return null;
+              
+              const isCollapsed = collapsedStages[stage] || false;
+              const stageProgress = Math.round((stageTasks.filter(t => t.checked).length / stageTasks.length) * 100);
+
+              return (
+                <div key={stage} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm print-border transition-all">
+                  {/* Stage Header */}
+                  <div 
+                    onClick={() => toggleStage(stage)}
+                    className="bg-gray-50/80 px-4 md:px-6 py-4 flex flex-wrap justify-between items-center cursor-pointer hover:bg-gray-100 transition-colors border-b border-gray-200 select-none"
+                  >
+                    <div className="flex items-center gap-4">
+                      <h4 className="font-black text-lg text-[#1b222b] tracking-tight">{STAGE_DISPLAY_NAMES[stage]}</h4>
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded border hidden sm:inline-block ${stageProgress === 100 ? 'bg-[#55c977]/10 text-[#55c977] border-[#55c977]/30' : 'bg-white text-gray-500 border-gray-200'}`}>
+                        {stageProgress}% Done
+                      </span>
                     </div>
-                    <button class="btn btn-primary" onclick="splitRange()" style="margin-bottom: 24px;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                        Split Output
-                    </button>
-                    <textarea id="split-output" class="output-area" readonly placeholder="The new ranges will appear here."></textarea>
-                </div>
-            </div>
 
-            <div class="card">
-                <div class="card-header">
-                    <span>3. Complete List</span>
-                    <div style="display: flex; gap: 16px;">
-                        <button class="copy-btn" onclick="copyText('list-output')">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                            Copy List
-                        </button>
-                        <button class="copy-btn" onclick="downloadCSV('list-output', 'ddi_complete_list.csv')">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                            Export CSV
-                        </button>
+                    <div className="flex items-center gap-2 md:gap-4 mt-2 sm:mt-0">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setAddTaskStage(stage); }}
+                        className="text-[10px] font-black px-3 py-1.5 rounded-md bg-white text-[#2563eb] border border-gray-200 hover:border-[#2563eb] hover:bg-[#2563eb]/5 transition-all uppercase tracking-wider flex items-center gap-1 shadow-sm no-print"
+                      >
+                        <Plus size={12} /> <span className="hidden sm:inline">Add Task</span>
+                      </button>
+                      <span className="text-[10px] font-black px-3 py-1.5 rounded-md bg-white text-gray-500 border border-gray-200 shadow-sm hidden sm:inline-block">
+                        {stageTasks.length} Items
+                      </span>
+                      <div className={`text-gray-400 p-1 rounded hover:bg-gray-200 transition-all duration-300 no-print ${isCollapsed ? '-rotate-90' : ''}`}>
+                        <ChevronDown size={20} />
+                      </div>
                     </div>
-                </div>
-                <div class="card-body">
-                    <button class="btn btn-secondary" onclick="generateList()" style="margin-bottom: 24px;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-                        Generate Complete List
-                    </button>
-                    <div id="list-alert" class="alert mb-4">Warning: Generating a list with more than 50,000 numbers may freeze your browser. Please split the range first.</div>
-                    <textarea id="list-output" class="output-area" readonly placeholder="The number-by-number list will appear here."></textarea>
-                </div>
-            </div>
-        </main>
-    </div>
+                  </div>
 
-
-    <!-- ==========================================
-         VIEW: LOOKUP
-         ========================================== -->
-    <div id="lookup-view" class="view-section">
-        <nav class="top-nav">
-            <div class="container nav-container">
-                <a onclick="switchView('home')" class="nav-link">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                    Home
-                </a>
-                <a onclick="switchView('splitter')" class="nav-link">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                    DDI Range Manager
-                </a>
-                <a onclick="switchView('lookup')" class="nav-link active">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                    DDI Search & Validator
-                </a>
-            </div>
-        </nav>
-
-        <header class="tool-header">
-            <div class="container tool-header-content">
-                <div class="small-logo">
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="url(#logo-grad-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <defs>
-                            <linearGradient id="logo-grad-3" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stop-color="#c084fc" /><stop offset="100%" stop-color="#3b82f6" />
-                            </linearGradient>
-                        </defs>
-                        <circle cx="12" cy="12" r="2"></circle>
-                        <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48 0a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
-                    </svg>
-                </div>
-                <div class="tool-title">
-                    <h1>DDI Search & Validator</h1>
-                    <p>Global Number Validator & SIP Routing Formatter</p>
-                </div>
-            </div>
-        </header>
-
-        <main class="container">
-            <div class="card">
-                <div class="card-header">Phone Number Lookup</div>
-                <div class="card-body">
-                    <div class="search-layout">
-                        <div class="form-group">
-                            <label>Enter the number with country code (e.g., +5511987654321):</label>
-                            <div class="search-container">
-                                <input type="text" id="phone-input" class="form-input" placeholder="+00 00 00000 0000" onkeypress="handleEnter(event)">
-                                <button class="btn btn-primary" onclick="searchNumber()" style="width: auto;">Analyze</button>
-                            </div>
-                            <div class="hint">Hint: Remember to include the country code (e.g., 44 for UK, 55 for Brazil).</div>
+                  {/* Tasks List */}
+                  {!isCollapsed && (
+                    <div className="flex flex-col divide-y divide-gray-100">
+                      {stageTasks.map(item => {
+                        const finalTaskText = item.task.replace(/Provider/g, providerName).replace(/Customer/gi, customerName);
+                        const finalRole = item.ownerRole.replace(/Customer/gi, customerName).replace(/Provider/gi, providerName);
+                        const dFormat = item.expectedDate ? new Date(item.expectedDate).toLocaleDateString('en-GB') : 'N/A';
+                        
+                        return (
+                          <div key={item.id} className={`flex flex-col md:flex-row items-start md:items-stretch justify-between p-4 md:p-0 hover:bg-gray-50 transition-colors group ${item.checked ? 'opacity-70 hover:opacity-100 bg-gray-50/50' : ''}`}>
                             
-                            <div id="result-box" class="result-box"></div>
-                        </div>
+                            <div className="flex items-start gap-4 md:gap-5 flex-1 min-w-0 md:p-5 w-full">
+                              {/* Left Indicator */}
+                              <div className="text-center w-20 md:w-24 shrink-0 pt-1 border-r border-gray-200 pr-4 md:pr-5">
+                                <span className="block text-[9px] font-black text-gray-400 mb-1 tracking-widest">{item.id}</span>
+                                <span className={`block text-lg md:text-xl font-black transition-colors ${item.checked ? 'text-gray-400 line-through' : 'text-[#1b222b] group-hover:text-[#2563eb]'}`}>
+                                  {item.t}
+                                </span>
+                                <span className="text-[9px] font-black uppercase text-gray-400 block mt-1 tracking-widest">{item.unit}</span>
+                              </div>
+                              
+                              {/* Middle Meta */}
+                              <div className="flex-1 min-w-0 pt-0.5">
+                                <p className={`text-sm md:text-[15px] font-bold leading-snug mb-3 pr-2 transition-colors ${item.checked ? 'text-gray-500 line-through decoration-gray-300' : 'text-[#1b222b]'}`}>
+                                  {finalTaskText}
+                                </p>
+                                
+                                <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                                  {/* Type Badge */}
+                                  {item.type === 'T-Minus' 
+                                    ? <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest bg-blue-50 text-blue-600 border border-blue-100">T-Minus</span>
+                                    : <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 border border-emerald-100">Runbook</span>
+                                  }
+                                  
+                                  {/* Date Badge */}
+                                  <span className="text-[10px] font-mono bg-white text-gray-600 px-2 py-0.5 rounded border border-gray-200 font-bold shadow-sm">
+                                    Target: {dFormat}
+                                  </span>
+                                  
+                                  {/* Delivered Badge */}
+                                  {item.deliveredDate && (
+                                    <span className="text-[10px] font-mono bg-[#55c977]/10 text-[#55c977] px-2 py-0.5 rounded border border-[#55c977]/30 font-bold flex items-center gap-1 shadow-sm">
+                                      <CheckCircle2 size={12} /> {new Date(item.deliveredDate).toLocaleDateString('en-GB')}
+                                    </span>
+                                  )}
 
-                        <!-- Dial Pad for Lookup -->
-                        <div>
-                            <div class="dial-pad">
-                                <button class="dial-btn" onclick="typeChar('1')">1</button>
-                                <button class="dial-btn" onclick="typeChar('2')">2</button>
-                                <button class="dial-btn" onclick="typeChar('3')">3</button>
-                                <button class="dial-btn" onclick="typeChar('4')">4</button>
-                                <button class="dial-btn" onclick="typeChar('5')">5</button>
-                                <button class="dial-btn" onclick="typeChar('6')">6</button>
-                                <button class="dial-btn" onclick="typeChar('7')">7</button>
-                                <button class="dial-btn" onclick="typeChar('8')">8</button>
-                                <button class="dial-btn" onclick="typeChar('9')">9</button>
-                                <button class="dial-btn dial-btn-action" onclick="typeChar('+')">+</button>
-                                <button class="dial-btn" onclick="typeChar('0')">0</button>
-                                <button class="dial-btn dial-btn-action" onclick="deleteChar()">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path><line x1="18" y1="9" x2="12" y2="15"></line><line x1="12" y1="9" x2="18" y2="15"></line></svg>
-                                </button>
+                                  {/* Status Select */}
+                                  {!item.checked ? (
+                                    <select 
+                                      value={item.manualStatus} 
+                                      onChange={(e) => updateManualStatus(item.id, e.target.value)}
+                                      className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md outline-none cursor-pointer border transition-colors shadow-sm no-print ${getStatusSelectClass(item.manualStatus)}`}
+                                    >
+                                      <option value="Not Started">Not Started</option>
+                                      <option value="In Progress">In Progress</option>
+                                      <option value="Need Attention">Need Attention</option>
+                                    </select>
+                                  ) : (
+                                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-gray-100 text-gray-500 border border-gray-200 flex items-center gap-1">
+                                      Done
+                                    </span>
+                                  )}
+
+                                  {/* Owner and Actions */}
+                                  <div className="w-full sm:w-auto sm:ml-auto flex items-center gap-3 mt-2 sm:mt-0">
+                                    <span className={`px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm truncate max-w-[150px] md:max-w-none ${getBadgeClass(finalRole)}`}>
+                                      👤 {finalRole}
+                                    </span>
+                                    <button onClick={() => removeTask(item.id)} className="text-gray-300 hover:text-red-500 transition-colors p-1.5 rounded-md hover:bg-red-50 no-print opacity-0 group-hover:opacity-100 focus:opacity-100" title="Delete Task" aria-label="Delete task">
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                        </div>
+
+                            {/* Right Checkbox (Desktop: side border, Mobile: top border) */}
+                            <div className="flex items-center md:justify-center w-full md:w-20 shrink-0 md:h-auto border-t md:border-t-0 md:border-l border-gray-200 mt-4 md:mt-0 pt-4 md:pt-0 no-print bg-gray-50/50 md:bg-transparent">
+                              <button 
+                                onClick={() => toggleCheck(item.id)}
+                                aria-label={item.checked ? "Mark as incomplete" : "Mark as complete"}
+                                className={`w-8 h-8 md:w-7 md:h-7 mx-auto border-2 rounded-lg flex items-center justify-center transition-all shadow-sm focus:ring-4 focus:ring-offset-1 focus:outline-none ${
+                                  item.checked 
+                                  ? 'bg-[#55c977] border-[#55c977] text-white focus:ring-[#55c977]/30' 
+                                  : 'bg-white border-gray-300 hover:border-[#2563eb] text-transparent hover:text-gray-200 focus:border-[#2563eb] focus:ring-[#2563eb]/20'
+                                }`}
+                              >
+                                <Check size={18} strokeWidth={4} className={item.checked ? "opacity-100" : "opacity-0 group-hover:opacity-100"} />
+                              </button>
+                              <span className="md:hidden ml-3 text-xs font-bold text-gray-500 uppercase tracking-widest">
+                                {item.checked ? 'Completed' : 'Mark Complete'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
+                  )}
                 </div>
+              );
+            })
+          )}
+        </div>
+      </main>
+
+      {/* --- MODALS --- */}
+      {/* INFO MODAL */}
+      {isInfoOpen && (
+        <div className="fixed inset-0 bg-[#1b222b]/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setIsInfoOpen(false)}>
+          <div className="bg-white border border-gray-200 p-6 md:p-8 rounded-3xl max-w-lg w-full shadow-2xl relative" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setIsInfoOpen(false)} className="absolute top-5 right-5 text-gray-400 hover:text-[#1b222b] transition-colors p-1 bg-gray-50 rounded-full hover:bg-gray-100">
+              <span className="flex items-center justify-center w-6 h-6 text-xl font-black leading-none">×</span>
+            </button>
+            <h2 className="text-2xl font-black mb-4 text-[#1b222b] flex items-center gap-2">
+              Project Framework
+            </h2>
+            <p className="text-sm text-gray-600 mb-6 leading-relaxed font-semibold">
+              This React-powered console combines strategic planning (T-Minus) with tactical execution (Runbook) into a single chronology. 
+              <br/><br/>
+              <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded inline-block text-xs border border-blue-100">
+                Data is saved securely offline in your browser's local storage.
+              </span>
+            </p>
+            
+            <div className="space-y-5 bg-gray-50 p-5 rounded-xl border border-gray-100 mb-6">
+              <div className="flex gap-4 items-start">
+                <span className="text-2xl mt-1">⏳</span>
+                <div>
+                  <strong className="text-[#2563eb] block mb-0.5 font-black tracking-wide uppercase text-sm">T-Minus Strategy</strong>
+                  <p className="text-gray-500 text-xs font-bold leading-snug">Preparatory activities counting down to the migration event.</p>
+                </div>
+              </div>
+              <div className="flex gap-4 items-start">
+                <span className="text-2xl mt-1">🚀</span>
+                <div>
+                  <strong className="text-[#55c977] block mb-0.5 font-black tracking-wide uppercase text-sm">Execution Runbook</strong>
+                  <p className="text-gray-500 text-xs font-bold leading-snug">Technical tasks performed during the cutover window and support period.</p>
+                </div>
+              </div>
             </div>
-        </main>
+
+            <div className="pt-5 border-t border-gray-100">
+              <button 
+                onClick={resetProject}
+                className="w-full py-3 px-4 bg-white border-2 border-red-100 text-red-600 font-bold rounded-xl flex justify-center items-center gap-2 hover:bg-red-50 hover:border-red-200 transition-colors"
+              >
+                <AlertTriangle size={16} /> Erase All Data & Factory Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD TASK MODAL */}
+      {addTaskStage && (
+        <div className="fixed inset-0 bg-[#1b222b]/40 backdrop-blur-sm z-[110] flex items-center justify-center p-4 sm:p-6 overflow-y-auto" onClick={() => setAddTaskStage(null)}>
+          <div className="bg-white border border-gray-200 p-6 md:p-8 rounded-3xl max-w-lg w-full shadow-2xl relative my-auto" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setAddTaskStage(null)} className="absolute top-5 right-5 text-gray-400 hover:text-red-500 transition-colors p-1 bg-gray-50 rounded-full hover:bg-red-50">
+               <span className="flex items-center justify-center w-6 h-6 text-xl font-black leading-none">×</span>
+            </button>
+            <h2 className="text-2xl font-black mb-6 text-[#1b222b] leading-tight">
+              Add Task <span className="text-sm text-[#2563eb] block mt-1 font-bold">{STAGE_DISPLAY_NAMES[addTaskStage]}</span>
+            </h2>
+            
+            <form onSubmit={handleAddTaskSubmit} className="space-y-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-500 mb-1 tracking-widest uppercase">Task ID (Optional)</label>
+                  <input type="text" placeholder="Auto-generated" value={newTask.id} onChange={e => setNewTask({...newTask, id: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#1b222b] focus:bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none font-bold transition-all" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-500 mb-1 tracking-widest uppercase">Type</label>
+                  <select value={newTask.type} onChange={e => setNewTask({...newTask, type: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#1b222b] focus:bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none font-bold cursor-pointer transition-all">
+                    <option value="Runbook">Runbook</option>
+                    <option value="T-Minus">T-Minus</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-1">
+                  <label className="block text-[10px] font-black text-gray-500 mb-1 tracking-widest uppercase" title="Numeric value for calculation">Offset (#)</label>
+                  <input type="number" step="0.1" required placeholder="e.g. 13" value={newTask.tNum} onChange={e => setNewTask({...newTask, tNum: e.target.value, tDisplay: `T-${e.target.value}`})} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#1b222b] focus:bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none font-bold transition-all" />
+                </div>
+                <div className="col-span-1">
+                  <label className="block text-[10px] font-black text-gray-500 mb-1 tracking-widest uppercase" title="Visual text shown on dashboard">Label</label>
+                  <input type="text" required placeholder="e.g. T-13" value={newTask.tDisplay} onChange={e => setNewTask({...newTask, tDisplay: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#1b222b] focus:bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none font-bold transition-all" />
+                </div>
+                <div className="col-span-1">
+                  <label className="block text-[10px] font-black text-gray-500 mb-1 tracking-widest uppercase">Unit</label>
+                  <select value={newTask.unit} onChange={e => setNewTask({...newTask, unit: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#1b222b] focus:bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none font-bold cursor-pointer transition-all">
+                    <option value="Weeks">Weeks</option>
+                    <option value="Hours">Hours</option>
+                    <option value="FDOB">FDOB</option>
+                    <option value="Post">Post</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-500 mb-1 tracking-widest uppercase">Action Description</label>
+                <textarea required rows={3} placeholder="Describe the action in detail..." value={newTask.desc} onChange={e => setNewTask({...newTask, desc: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#1b222b] focus:bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none font-bold resize-y transition-all"></textarea>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-500 mb-1 tracking-widest uppercase">Owner / Responsible</label>
+                <input type="text" required placeholder="e.g. Provider Impl Eng" value={newTask.owner} onChange={e => setNewTask({...newTask, owner: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#1b222b] focus:bg-white focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 outline-none font-bold transition-all" />
+              </div>
+              
+              <div className="pt-2">
+                <button type="submit" className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-black tracking-widest uppercase py-3.5 rounded-xl transition-all shadow-md shadow-[#2563eb]/20 flex justify-center items-center gap-2">
+                  <Plus size={18} /> Add to Timeline
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
-
-    <footer>
-        &copy; 2026 Telecom Engineering Tools • Offline Suite
-    </footer>
-
-    <!-- ==========================================
-         JAVASCRIPT LOGIC
-         ========================================== -->
-    <script>
-        // --- 1. Single Page Application (View Switcher) ---
-        let activeInputId = ''; 
-
-        function switchView(viewName) {
-            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-            document.getElementById(viewName + '-view').classList.add('active');
-            
-            if(viewName === 'splitter') {
-                activeInputId = 'start-num';
-                updateActiveInputUI();
-            } else if(viewName === 'lookup') {
-                activeInputId = 'phone-input';
-                updateActiveInputUI();
-            }
-            
-            window.scrollTo(0,0);
-        }
-
-        ['start-num', 'end-num', 'phone-input'].forEach(id => {
-            const el = document.getElementById(id);
-            if(el) {
-                el.addEventListener('focus', function() {
-                    activeInputId = this.id;
-                    updateActiveInputUI();
-                });
-            }
-        });
-
-        function updateActiveInputUI() {
-            document.querySelectorAll('.form-input').forEach(el => el.classList.remove('active-input'));
-            const activeEl = document.getElementById(activeInputId);
-            if(activeEl) activeEl.classList.add('active-input');
-        }
-
-        // --- 2. Generic Dial Pad Logic ---
-        function typeChar(char) {
-            const input = document.getElementById(activeInputId);
-            if (!input) return;
-            const start = input.selectionStart;
-            const end = input.selectionEnd;
-            const val = input.value;
-            
-            input.value = val.slice(0, start) + char + val.slice(end);
-            input.selectionStart = input.selectionEnd = start + 1;
-            
-            if(activeInputId === 'start-num' || activeInputId === 'end-num') calculateRange();
-            input.focus();
-        }
-
-        function deleteChar() {
-            const input = document.getElementById(activeInputId);
-            if (!input) return;
-            const start = input.selectionStart;
-            const end = input.selectionEnd;
-            const val = input.value;
-            
-            if (start === end && start > 0) {
-                input.value = val.slice(0, start - 1) + val.slice(end);
-                input.selectionStart = input.selectionEnd = start - 1;
-            } else if (start !== end) {
-                input.value = val.slice(0, start) + val.slice(end);
-                input.selectionStart = input.selectionEnd = start;
-            }
-            
-            if(activeInputId === 'start-num' || activeInputId === 'end-num') calculateRange();
-            input.focus();
-        }
-
-        // Generic Copy - WITH EXCEL COPY/PASTE FIX
-        function copyText(elementIdOrText) {
-            let textToCopy = "";
-            const el = document.getElementById(elementIdOrText);
-            
-            if (el) {
-                textToCopy = el.value;
-                if (!textToCopy || textToCopy.includes("wait") || textToCopy.includes("Please")) return;
-                
-                // EXCEL FIX: Prepend single quote to numbers starting with '+' to prevent formulas/scientific notation
-                textToCopy = textToCopy.replace(/(^|\t)(\+)/gm, "$1'+");
-                
-                // Ensure Windows CRLF for proper row breaks when pasting
-                textToCopy = textToCopy.replace(/\r?\n/g, "\r\n");
-                
-            } else {
-                textToCopy = elementIdOrText;
-            }
-
-            // USE TEXTAREA instead of INPUT for multiline copying
-            const tempInput = document.createElement("textarea");
-            tempInput.value = textToCopy;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand("copy");
-            document.body.removeChild(tempInput);
-            
-            const btn = event.currentTarget;
-            const originalColor = btn.style.color;
-            const originalHTML = btn.innerHTML;
-            
-            if (el) {
-                btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!`;
-            }
-            btn.style.color = "var(--success-text)";
-            
-            setTimeout(() => {
-                if(el) btn.innerHTML = originalHTML;
-                btn.style.color = originalColor || "var(--text-muted)";
-                if(el) btn.style.color = '#c084fc'; 
-            }, 1000);
-        }
-
-        // --- 3. Splitter Logic ---
-        function parseDDI(str) {
-            if (!str) return null;
-            let val = str.trim();
-            let hasPlus = val.startsWith('+');
-            let numStr = val.replace(/\D/g, '');
-            if (numStr.length === 0) return null;
-            return { originalLength: numStr.length, hasPlus: hasPlus, value: BigInt(numStr) };
-        }
-
-        function formatDDI(bigIntValue, originalLength, hasPlus) {
-            let numStr = bigIntValue.toString();
-            while (numStr.length < originalLength) { numStr = '0' + numStr; }
-            return hasPlus ? '+' + numStr : numStr;
-        }
-
-        function getRangeData() {
-            const startInput = document.getElementById('start-num').value;
-            const endInput = document.getElementById('end-num').value;
-            const alertBox = document.getElementById('range-alert');
-
-            const start = parseDDI(startInput);
-            const end = parseDDI(endInput);
-
-            if (!start || !end) {
-                document.getElementById('total-size').innerText = '0';
-                alertBox.style.display = 'none';
-                return null;
-            }
-
-            if (start.value > end.value) {
-                document.getElementById('total-size').innerText = '0';
-                alertBox.style.display = 'block';
-                return null;
-            }
-
-            alertBox.style.display = 'none';
-            const size = (end.value - start.value) + 1n; 
-            return { start, end, size };
-        }
-
-        function calculateRange() {
-            const data = getRangeData();
-            if (data) document.getElementById('total-size').innerText = data.size.toString();
-        }
-
-        function splitRange() {
-            const data = getRangeData();
-            const outputArea = document.getElementById('split-output');
-            if (!data) { outputArea.value = "Please define a valid start and end number first."; return; }
-            let chunkSizeStr = document.getElementById('chunk-size').value;
-            if (!chunkSizeStr || parseInt(chunkSizeStr) < 1) { outputArea.value = "The chunk size must be at least 1."; return; }
-
-            const chunkSize = BigInt(chunkSizeStr);
-            let current = data.start.value;
-            let endLimit = data.end.value;
-            
-            // Format adapted for perfect Excel copy-paste (Tabs instead of spaces/symbols)
-            // Added explicit \r\n for Windows Clipboard reliability
-            let outputText = "Start DDI\tEnd DDI\tSize\r\n";
-
-            while (current <= endLimit) {
-                let blockEnd = current + chunkSize - 1n;
-                if (blockEnd > endLimit) blockEnd = endLimit;
-                let startFormat = formatDDI(current, data.start.originalLength, data.start.hasPlus);
-                let endFormat = formatDDI(blockEnd, data.end.originalLength, data.end.hasPlus);
-                let blockSize = (blockEnd - current + 1n).toString();
-
-                outputText += `${startFormat}\t${endFormat}\t${blockSize}\r\n`;
-                current = blockEnd + 1n;
-            }
-            outputArea.value = outputText;
-        }
-
-        function generateList() {
-            const data = getRangeData();
-            const outputArea = document.getElementById('list-output');
-            const alertBox = document.getElementById('list-alert');
-            if (!data) { outputArea.value = "Please define a valid start and end number first."; return; }
-
-            if (data.size > 50000n) {
-                alertBox.style.display = 'block';
-                outputArea.value = "Security block triggered.\nThis range has " + data.size.toString() + " numbers.\nPlease use the Split Range function instead.";
-                return;
-            } else { alertBox.style.display = 'none'; }
-
-            outputArea.value = "Generating list, please wait...";
-            setTimeout(() => {
-                let outputText = "DDI Number\r\n";
-                for (let i = data.start.value; i <= data.end.value; i++) {
-                    outputText += formatDDI(i, data.start.originalLength, data.start.hasPlus) + "\r\n";
-                }
-                outputArea.value = outputText;
-            }, 50);
-        }
-
-        // --- Export CSV Logic - WITH EXCEL FORMAT FIX ---
-        function downloadCSV(elementId, filename) {
-            const el = document.getElementById(elementId);
-            if (!el || !el.value || el.value.includes("wait") || el.value.includes("Please")) return;
-
-            let text = el.value;
-            
-            // EXCEL CSV FIX: Wrap numbers starting with '+' in ="..." to force text format
-            text = text.replace(/(^|\t)(\+\d+)/gm, '$1="$2"');
-
-            // Converter Tabulações (\t) para Ponto e Vírgula (;)
-            let csvContent = text.replace(/\t/g, ';');
-            
-            // Ensure Windows CRLF
-            csvContent = csvContent.replace(/\r?\n/g, "\r\n");
-            
-            // Adicionar BOM UTF-8
-            const bom = "\uFEFF";
-
-            // Criar o Blob e forçar o download
-            const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", filename);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        // --- 4. Lookup Logic ---
-        function handleEnter(e) { if (e.key === "Enter" && activeInputId === 'phone-input') searchNumber(); }
-
-        function searchNumber() {
-            const input = document.getElementById('phone-input').value.trim();
-            if (!input) return;
-            let formattedInput = input.startsWith('+') ? input : '+' + input.replace(/\D/g, '');
-
-            try {
-                const phone = libphonenumber.parsePhoneNumber(formattedInput);
-                if (!phone.isValid()) {
-                    showError("Invalid or incomplete number for the detected country.");
-                    return;
-                }
-                showSuccess(phone);
-            } catch (err) {
-                showError("Format error. Make sure to use the international code (e.g., +44...)");
-            }
-        }
-
-        function showSuccess(p) {
-            const rb = document.getElementById('result-box');
-            rb.className = 'result-box result-success';
-            rb.style.display = 'block';
-            
-            const e164 = p.format('E.164');
-            const uri = p.getURI();
-            const rawType = p.getType() || 'UNKNOWN';
-            const rawNumber = p.number.substring(1); 
-            
-            let typeLabel = rawType.replace('_', ' ');
-            let locationLabel = "General Country Region";
-            let areaCodeLabel = "N/A";
-
-            if (rawType === 'FIXED_LINE_OR_MOBILE') typeLabel = 'FIXED OR MOBILE';
-
-            if (p.country === 'BR') {
-                const ddd = rawNumber.substring(2, 4);
-                areaCodeLabel = `DDD ${ddd}`;
-            } else if (p.country === 'US' || p.country === 'CA') {
-                const npa = rawNumber.substring(1, 4);
-                areaCodeLabel = `NPA ${npa}`;
-            }
-
-            rb.innerHTML = `
-                <div class="result-label">International Format (E.164)</div>
-                <div class="result-value" style="font-size: 32px; color: var(--success-text); letter-spacing: 1px;">
-                    ${p.formatInternational()}
-                    <svg class="copy-icon" onclick="copyText('${e164}')" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                </div>
-                <div class="divider"></div>
-                <div class="result-grid">
-                    <div class="result-item">
-                        <div class="result-label">Country / ISO</div>
-                        <div class="result-value val-highlight">${p.country} (+${p.countryCallingCode})</div>
-                    </div>
-                    <div class="result-item">
-                        <div class="result-label">Line Type</div>
-                        <div class="result-value val-purple" style="text-transform: capitalize;">${typeLabel.toLowerCase()}</div>
-                    </div>
-                    <div class="result-item">
-                        <div class="result-label">Prefix / Area Code</div>
-                        <div class="result-value" style="font-family:monospace;">${areaCodeLabel}</div>
-                    </div>
-                    <div class="result-item">
-                        <div class="result-label">National Format</div>
-                        <div class="result-value" style="font-family:monospace;">${p.formatNational()}</div>
-                    </div>
-                    <div class="result-item" style="grid-column: span auto;">
-                        <div class="result-label">SIP URI (RFC 3966) <svg class="copy-icon" onclick="copyText('${uri}')" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></div>
-                        <div class="result-value" style="font-size: 13px; opacity: 0.7; font-family:monospace; word-break: break-all;">${uri}</div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function showError(msg) {
-            const rb = document.getElementById('result-box');
-            rb.className = 'result-box result-error';
-            rb.style.display = 'block';
-            rb.innerHTML = `<span style="font-weight:bold; color:var(--error-text)">${msg}</span>`;
-        }
-
-    </script>
-</body>
-</html>
+  );
+}
